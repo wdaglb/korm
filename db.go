@@ -79,12 +79,12 @@ func (t *kdb) Rollback(key int) error {
 
 // 当前操作事务
 func (t *kdb) current() *sql.Tx {
-	key := t.currentKey.get().(int)
-	if key == 0 {
+	key := t.currentKey.get()
+	if key == nil {
 		return nil
 	}
 	fmt.Printf("当前执行事务标识：%v\n", key)
-	return t.tx[key]
+	return t.tx[key.(int)]
 }
 
 func (t *kdb) Exec(query string, args ...interface{}) (sql.Result, error) {

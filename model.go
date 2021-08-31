@@ -106,7 +106,6 @@ func (m *Model) Find() (bool, error) {
 	db := m.db
 	m.builder.p = "select"
 	sqlStr, bindParams := m.builder.ToString()
-	fmt.Printf("sql: %v\n", sqlStr)
 	// sqlStr := fmt.Sprintf("SELECT * FROM %s WHERE id=?", m.table)
 
 	stmt, err := db.Prepare(sqlStr)
@@ -120,15 +119,13 @@ func (m *Model) Find() (bool, error) {
 	}
 	defer rows.Close()
 
-	collection := &Collection{}
-	collection.model = m
 	if rows.Next() {
 		ret, err := m.toMap(rows)
 		if err != nil {
 			return true, fmt.Errorf("res to map fail: %v", err)
 		}
-		collection.SetData(ret)
-		collection.ToStruct()
+
+		mapToStruct(ret, m.model)
 		return true, nil
 	}
 
@@ -143,7 +140,6 @@ func (m *Model) Select() error {
 	db := m.db
 	m.builder.p = "select"
 	sqlStr, bindParams := m.builder.ToString()
-	fmt.Printf("sql: %v\n", sqlStr)
 	// sqlStr := fmt.Sprintf("SELECT * FROM %s WHERE id=?", m.table)
 
 	stmt, err := db.Prepare(sqlStr)
@@ -178,17 +174,8 @@ func (m *Model) Select() error {
 				colName = field.Name
 			}
 			fieldValue := newValue.FieldByName(field.Name)
-			p := fieldValue.Type()
-			if p.Kind() == reflect.Ptr {
-				p = p.Elem()
-			}
-
-			for fieldValue.Kind() == reflect.Ptr {
-				fieldValue.Set(reflect.New(p))
-				fieldValue = fieldValue.Elem()
-			}
-
-			asValue(ret[colName], p, fieldValue)
+			callScan(ret[colName], fieldValue)
+			// asValue(ret[colName], p, fieldValue)
 		}
 		tmp := reflect.Append(m.reflectValue, newValue)
 		m.reflectValue.Set(tmp)
@@ -216,7 +203,6 @@ func (m *Model) Value(col string, dst interface{}) (bool, error) {
 	sqlStr, bindParams := m.builder.ToString()
 	// sqlStr := fmt.Sprintf("SELECT * FROM %s WHERE id=?", m.table)
 
-	fmt.Printf("sql: %v\n", sqlStr)
 	stmt, err := db.Prepare(sqlStr)
 	if err != nil {
 		return false, fmt.Errorf("prepare fail: %v", err)
@@ -327,7 +313,6 @@ func (m *Model) Create() error {
 		m.builder.data[typeof.Name] = field.Interface()
 	}
 	sqlStr, bindParams := m.builder.ToString()
-	fmt.Printf("sql: %v\n", sqlStr)
 
 	stmt, err := db.Prepare(sqlStr)
 	if err != nil {
@@ -368,15 +353,13 @@ func (m *Model) Update() error {
 	db := m.db
 	m.builder.p = "update"
 	m.builder.data = structToMap(m.model)
-	if len(m.builder.where) == 0 {
+	if m.builder.where == nil {
 		id := m.reflectValue.FieldByName(m.pk).Int()
 		if id > 0 {
 			m.Where("Id", id)
 		}
 	}
-	fmt.Printf("data: %v\n", m.builder.data)
 	sqlStr, bindParams := m.builder.ToString()
-	fmt.Printf("sql: %v\n", sqlStr)
 
 	stmt, err := db.Prepare(sqlStr)
 	if err != nil {
@@ -402,14 +385,13 @@ func (m *Model) Delete() error {
 	db := m.db
 	m.builder.p = "delete"
 
-	if len(m.builder.where) == 0 {
+	if m.builder.where == nil {
 		id := m.reflectValue.FieldByName(m.pk).Int()
 		if id > 0 {
 			m.Where("Id", id)
 		}
 	}
 	sqlStr, bindParams := m.builder.ToString()
-	fmt.Printf("sql: %v\n", sqlStr)
 
 	stmt, err := db.Prepare(sqlStr)
 	if err != nil {

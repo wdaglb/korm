@@ -13,9 +13,9 @@ type SqlBuilder struct {
 	data map[string]interface{}
 	fields []string
 	orders []string
-	where []string
+	where *Where
 	group []string
-	having []string
+	having *Where
 	offset *int
 	limit *int
 	bindParams []interface{}
@@ -30,7 +30,6 @@ func NewSqlBuilder(model *Model) *SqlBuilder {
 	//	sq.sep = ":"
 	//}
 	sq.sep = ":"
-	sq.where = make([]string, 0)
 	return sq
 }
 
@@ -66,13 +65,17 @@ func (t *SqlBuilder) AddWhere(logic string, field string, op interface{}, condit
 	} else {
 		value = condition[0]
 	}
-	t.bindParam(value)
-	if len(t.where) == 0 {
-		logic = ""
-	} else {
-		logic = fmt.Sprintf(" %s ", strings.ToUpper(logic))
+	if t.where == nil {
+		t.where = &Where{
+			builder: t,
+		}
 	}
-	t.where = append(t.where, fmt.Sprintf("%s%s%s?", logic, t.parseField(field), op))
+	t.where.AddCondition(WhereCondition{
+		Logic: logic,
+		Field: t.parseField(field),
+		Operator: op.(string),
+		Condition: value,
+	})
 
 	return t
 }
@@ -95,19 +98,19 @@ func (t *SqlBuilder) AddHaving(logic string, field string, op interface{}, condi
 	} else {
 		value = condition[0]
 	}
-	t.bindParam(value)
-	if len(t.where) == 0 {
-		logic = ""
-	} else {
-		logic = fmt.Sprintf(" %s ", strings.ToUpper(logic))
+	if t.having == nil {
+		t.having = &Where{
+			builder: t,
+		}
 	}
-	t.having = append(t.having, fmt.Sprintf("%s%s%s?", logic, t.parseField(field), op))
+	t.having.AddCondition(WhereCondition{
+		Logic:     logic,
+		Field:     t.parseField(field),
+		Operator:  op.(string),
+		Condition: value,
+	})
 
 	return t
-}
-
-func (t *SqlBuilder) toWhere() string {
-	return strings.Join(t.where, "")
 }
 
 func (t *SqlBuilder) ToString() (string, []interface{}) {
@@ -155,8 +158,8 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 
 	switch t.p {
 	case "select", "update", "delete":
-		if len(t.where) > 0 {
-			str += " WHERE " + t.toWhere()
+		if t.where != nil {
+			str += " WHERE " + t.where.ToString()
 		}
 	}
 	if len(t.group) > 0 {
@@ -165,21 +168,32 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 	if len(t.orders) > 0 {
 		str += " ORDER BY " + strings.Join(t.orders, ", ")
 	}
-	if len(t.having) > 0 {
-		str += fmt.Sprintf(" HAVING %s", strings.Join(t.having, ""))
+	if t.having != nil {
+		str += fmt.Sprintf(" HAVING %s", t.having.ToString())
 	}
-	if t.offset != nil {
-		str += fmt.Sprintf(" OFFSET %d", *t.offset)
-		switch t.model.config.Driver {
-		case "mssql":
-			str += " ROWS FETCH NEXT [limit] ROWS ONLY"
+
+	switch t.model.config.Driver {
+	case "mssql":
+		if t.offset != nil {
+			str += fmt.Sprintf(" OFFSET %d", *t.offset)
+			switch t.model.config.Driver {
+			case "mssql":
+				str += " ROWS FETCH NEXT [limit] ROWS ONLY"
+			}
+		}
+	case "mysql":
+		if t.p == "select" {
+			limit := "1"
+			if t.limit != nil {
+				limit = fmt.Sprintf("%d", *t.limit)
+			}
+			str += " LIMIT " + limit
+
+			if t.offset != nil {
+				str += fmt.Sprintf(" OFFSET %d", *t.offset)
+			}
 		}
 	}
-	limit := "1"
-	if t.limit != nil {
-		limit = fmt.Sprintf("%d", *t.limit)
-	}
-	str = strings.ReplaceAll(str, "[limit]", limit)
 
 	params := make([]interface{}, len(t.bindParams))
 	for v := range t.bindParams {

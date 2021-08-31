@@ -36,6 +36,9 @@ func (q *Queue) get() interface{} {
 	defer locLock.Unlock()
 	locLock.Lock()
 	v := q.data.Front()
+	if v == nil {
+		return nil
+	}
 	val := v.Value
 	return val
 }

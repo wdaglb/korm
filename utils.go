@@ -10,13 +10,6 @@ import (
 	"unicode"
 )
 
-func indirect(reflectValue reflect.Value) reflect.Value {
-	for reflectValue.Kind() == reflect.Ptr {
-		reflectValue = reflectValue.Elem()
-	}
-	return reflectValue
-}
-
 // 首字母大写
 func Ucfirst(str string) string {
 	for i, v := range str {
@@ -183,6 +176,9 @@ func callScan(src interface{}, dv reflect.Value) interface{} {
 	//}
 	sv := reflect.ValueOf(src)
 
+	if src == nil {
+		return nil
+	}
 	if dv.Kind() == sv.Kind() && sv.Type().ConvertibleTo(dv.Type()) {
 		dv.Set(sv.Convert(dv.Type()))
 		return nil
@@ -233,14 +229,8 @@ func callScan(src interface{}, dv reflect.Value) interface{} {
 
 // 结构体转为map
 func structToMap(data interface{}) map[string]interface{} {
-	typeOf := reflect.TypeOf(data)
-	valueOf := reflect.ValueOf(data)
-	if typeOf.Kind() == reflect.Ptr {
-		typeOf = typeOf.Elem()
-	}
-	if valueOf.Kind() == reflect.Ptr {
-		valueOf = valueOf.Elem()
-	}
+	typeOf := indirectType(reflect.TypeOf(data))
+	valueOf := indirect(reflect.ValueOf(data))
 	fieldNum := valueOf.NumField()
 	dst := make(map[string]interface{})
 	for i := 0; i < fieldNum; i++ {
@@ -255,16 +245,28 @@ func structToMap(data interface{}) map[string]interface{} {
 	return dst
 }
 
+func indirect(value reflect.Value) reflect.Value {
+	if value.Kind() == reflect.Ptr {
+		value = value.Elem()
+		return indirect(value)
+	}
+	return value
+}
+
+func indirectType(p reflect.Type) reflect.Type {
+	if p.Kind() == reflect.Ptr {
+		p = p.Elem()
+		return indirectType(p)
+	}
+	return p
+}
+
 // map转为结构体
 func mapToStruct(data map[string]interface{}, dst interface{})  {
-	typeOf := reflect.TypeOf(dst)
-	valueOf := reflect.ValueOf(dst)
-	if typeOf.Kind() == reflect.Ptr {
-		typeOf = typeOf.Elem()
-	}
-	if valueOf.Kind() == reflect.Ptr {
-		valueOf = valueOf.Elem()
-	}
+	typeOf := indirectType(reflect.TypeOf(dst))
+	valueOf := indirect(reflect.ValueOf(dst))
+
+	// fmt.Printf("vvv: %v\n", dst)
 	fieldNum := valueOf.NumField()
 	for i := 0; i < fieldNum; i++ {
 		typeofItem := typeOf.Field(i)
