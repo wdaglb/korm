@@ -5,16 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="a4b8273f-66f9-4cc9-ab4f-4bd65561e44d" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/context_test.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/db.go" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/queue.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/korm.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/korm.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/connect.go" beforeDir="false" afterPath="$PROJECT_DIR$/connect.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/context.go" beforeDir="false" afterPath="$PROJECT_DIR$/context.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/go.mod" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/model.go" beforeDir="false" afterPath="$PROJECT_DIR$/model.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sqlbuilder.go" beforeDir="false" afterPath="$PROJECT_DIR$/sqlbuilder.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utils.go" beforeDir="false" afterPath="$PROJECT_DIR$/utils.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/LICENSE" beforeDir="false" afterPath="$PROJECT_DIR$/LICENSE" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/context_test.go" beforeDir="false" afterPath="$PROJECT_DIR$/context_test.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

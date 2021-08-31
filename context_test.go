@@ -30,6 +30,15 @@ func TestContext(t *testing.T)  {
 		User: "test",
 	}
 
+	if ok, err := ctx.Model(&insertData).Where("Id", insertData.Id).Find(); !ok || err != nil {
+		fmt.Println("记录不存在")
+	}
+
+	var rows []Test
+	if err := ctx.Model(&rows).Select(); err != nil {
+		fmt.Println("查询错误")
+	}
+
 	err = ctx.Transaction(func() error {
 		i++
 		insertData.User = fmt.Sprintf("user%v", i)
@@ -69,8 +78,11 @@ func TestContext(t *testing.T)  {
 
 		return nil
 	})
+
 	if err != nil {
 		t.Fatal(err)
 	}
+
+
 
 }
