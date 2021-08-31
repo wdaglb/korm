@@ -1,7 +1,19 @@
 # korm
 golang orm, 一个简单易用的orm, 支持嵌套事务
 
-## 连接数据库
+## 安装
+```
+go get github.com/wdaglb/korm
+go get github.com/go-sql-driver/mysql
+```
+
+## 支持数据库
+
+* mysql https://github.com/go-sql-driver/mysql
+* mssql https://github.com/denisenkom/go-mssqldb
+* ...其它未测
+
+## 连接mysql数据库
 
 ```
 err := Connect(Config{
