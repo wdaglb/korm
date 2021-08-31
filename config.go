@@ -8,6 +8,6 @@ type Config struct {
 	Pass string
 	Port int
 	Database string
-	MaxOpenConns *int
-	MaxIdleConns *int
+	MaxOpenConns int
+	MaxIdleConns int
 }

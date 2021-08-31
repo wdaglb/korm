@@ -61,11 +61,11 @@ func Connect(config Config) (err error) {
 	} else {
 		dbMaps[config.Conn] = conn
 	}
-	if config.MaxIdleConns == nil {
-		db.SetMaxIdleConns(10)
+	if config.MaxIdleConns > 0 {
+		db.SetMaxIdleConns(config.MaxIdleConns)
 	}
-	if config.MaxOpenConns == nil {
-		db.SetMaxOpenConns(200)
+	if config.MaxOpenConns > 0 {
+		db.SetMaxOpenConns(config.MaxOpenConns)
 	}
 
 	return
