@@ -2,42 +2,21 @@ package korm
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
-	"log"
 	"reflect"
 )
 
 type Model struct {
+	db *kdb
+	config Config
 	table string
-	conn string
 	model interface{}
 	context *Context
 	pk string
 	builder *SqlBuilder
 	reflectValue reflect.Value
 	reflectType reflect.Type
-}
-
-// 使用连接名
-func (m *Model) Use(conn string) *Model {
-	m.conn = conn
-	return m
-}
-
-// 取得当前连接sql.DB实例
-func (m *Model) Db() *sql.DB {
-	if m.conn == "" {
-		return dbMaps[defaultConn].db
-	}
-	return dbMaps[m.conn].db
-}
-
-// 取得当前模型使用的配置
-func (m *Model) Config() Config {
-	if m.conn == "" {
-		return dbMaps[defaultConn].config
-	}
-	return dbMaps[m.conn].config
 }
 
 // 转为map
@@ -120,11 +99,11 @@ func (m *Model) HavingOr(field string, op interface{}, condition ...interface{})
 }
 
 // 获取一行数据
-func (m *Model) Find() bool {
+func (m *Model) Find() (bool, error) {
 	if m.table == "" {
-		panic("table is not set")
+		return false, errors.New("table is not set")
 	}
-	db := m.Db()
+	db := m.db
 	m.builder.p = "select"
 	sqlStr, bindParams := m.builder.ToString()
 	fmt.Printf("sql: %v\n", sqlStr)
@@ -132,12 +111,12 @@ func (m *Model) Find() bool {
 
 	stmt, err := db.Prepare(sqlStr)
 	if err != nil {
-		log.Panicf("prepare fail: %v", err)
+		return false, fmt.Errorf("prepare fail: %v", err)
 	}
 	defer stmt.Close()
 	rows, err := stmt.Query(bindParams...)
 	if err != nil {
-		log.Panicf("query fail: %v", err)
+		return false, fmt.Errorf("query fail: %v", err)
 	}
 	defer rows.Close()
 
@@ -146,22 +125,22 @@ func (m *Model) Find() bool {
 	if rows.Next() {
 		ret, err := m.toMap(rows)
 		if err != nil {
-			log.Panicf("res to map fail: %v", err)
+			return true, fmt.Errorf("res to map fail: %v", err)
 		}
 		collection.SetData(ret)
 		collection.ToStruct()
-		return true
+		return true, nil
 	}
 
-	return false
+	return false, nil
 }
 
 // 获取数据集
-func (m *Model) Select() bool {
+func (m *Model) Select() error {
 	if m.table == "" {
-		panic("table is not set")
+		return errors.New("table is not set")
 	}
-	db := m.Db()
+	db := m.db
 	m.builder.p = "select"
 	sqlStr, bindParams := m.builder.ToString()
 	fmt.Printf("sql: %v\n", sqlStr)
@@ -169,12 +148,12 @@ func (m *Model) Select() bool {
 
 	stmt, err := db.Prepare(sqlStr)
 	if err != nil {
-		log.Panicf("prepare fail: %v", err)
+		return fmt.Errorf("prepare fail: %v", err)
 	}
 	defer stmt.Close()
 	rows, err := stmt.Query(bindParams...)
 	if err != nil {
-		log.Panicf("query fail: %v", err)
+		return fmt.Errorf("query fail: %v", err)
 	}
 	defer rows.Close()
 
@@ -186,7 +165,7 @@ func (m *Model) Select() bool {
 	for rows.Next() {
 		ret, err := m.toMap(rows)
 		if err != nil {
-			log.Panicf("res to map fail: %v", err)
+			return fmt.Errorf("res to map fail: %v", err)
 		}
 		maps = append(maps, ret)
 
@@ -224,15 +203,15 @@ func (m *Model) Select() bool {
 	collection := &Collection{}
 	collection.model = m
 
-	return true
+	return nil
 }
 
 // 获取一列数据
-func (m *Model) Value(col string, dst interface{}) bool {
+func (m *Model) Value(col string, dst interface{}) (bool, error) {
 	if m.table == "" {
-		panic("table is not set")
+		return false, fmt.Errorf("table is not set")
 	}
-	db := m.Db()
+	db := m.db
 	m.builder.p = "select"
 	sqlStr, bindParams := m.builder.ToString()
 	// sqlStr := fmt.Sprintf("SELECT * FROM %s WHERE id=?", m.table)
@@ -240,19 +219,19 @@ func (m *Model) Value(col string, dst interface{}) bool {
 	fmt.Printf("sql: %v\n", sqlStr)
 	stmt, err := db.Prepare(sqlStr)
 	if err != nil {
-		log.Panicf("prepare fail: %v", err)
+		return false, fmt.Errorf("prepare fail: %v", err)
 	}
 	defer stmt.Close()
 	rows, err := stmt.Query(bindParams...)
 	if err != nil {
-		log.Panicf("query fail: %v", err)
+		return false, fmt.Errorf("query fail: %v", err)
 	}
 	defer rows.Close()
 
 	if rows.Next() {
 		ret, err := m.toMap(rows)
 		if err != nil {
-			log.Panicf("res to map fail: %v", err)
+			return true, fmt.Errorf("res to map fail: %v", err)
 		}
 		p := reflect.TypeOf(dst)
 		if p.Kind() == reflect.Ptr {
@@ -264,86 +243,81 @@ func (m *Model) Value(col string, dst interface{}) bool {
 		}
 		asValue(ret[col], p, value)
 
-		return true
+		return true, nil
 	}
 
-	return false
+	return false, nil
 }
 
 // 是否存在记录
 func (m *Model) Exist() bool {
 	m.builder.fields = []string{}
-	return m.Field(m.pk).Find()
+	ok, err := m.Field(m.pk).Find()
+	return ok && err == nil
 }
 
 // 统计
-func (m *Model) Count() int64 {
+func (m *Model) Count() (int64, error) {
 	var dst int64
 	m.builder.fields = []string{"COUNT(*) AS __COUNT__"}
-	m.Value("__COUNT__", &dst)
-	return dst
+	_, err := m.Value("__COUNT__", &dst)
+	return dst, err
 }
 
 // 求和
-func (m *Model) Sum(col string, dst interface{}) {
-	p := parseField(m.Config().Driver, m.reflectType, col)
+func (m *Model) Sum(col string, dst interface{}) error {
+	p := parseField(m.config.Driver, m.reflectType, col)
 	m.builder.fields = []string{fmt.Sprintf("SUM(%s) AS __SUM__", p)}
-	m.Value("__SUM__", dst)
+	_, err := m.Value("__SUM__", dst)
+	return err
 }
 
 // 最大值
-func (m *Model) Max(col string, dst interface{}) {
-	p := parseField(m.Config().Driver, m.reflectType, col)
+func (m *Model) Max(col string, dst interface{}) error {
+	p := parseField(m.config.Driver, m.reflectType, col)
 	m.builder.fields = []string{fmt.Sprintf("MAX(%s) AS __VALUE__", p)}
-	m.Value("__VALUE__", dst)
+	_, err := m.Value("__VALUE__", dst)
+	return err
 }
 
 // 最小值
-func (m *Model) Min(col string, dst interface{}) {
-	p := parseField(m.Config().Driver, m.reflectType, col)
+func (m *Model) Min(col string, dst interface{}) error {
+	p := parseField(m.config.Driver, m.reflectType, col)
 	m.builder.fields = []string{fmt.Sprintf("MIN(%s) AS __VALUE__", p)}
-	m.Value("__VALUE__", dst)
+	_, err := m.Value("__VALUE__", dst)
+	return err
 }
 
 // 平均值
-func (m *Model) Avg(col string, dst interface{}) {
-	p := parseField(m.Config().Driver, m.reflectType, col)
+func (m *Model) Avg(col string, dst interface{}) error {
+	p := parseField(m.config.Driver, m.reflectType, col)
 	m.builder.fields = []string{fmt.Sprintf("Avg(%s) AS __VALUE__", p)}
-	m.Value("__VALUE__", dst)
+	_, err := m.Value("__VALUE__", dst)
+	return err
 }
 
 // query
-func (m *Model) Query(sqlStr string, params ...interface{}) *sql.Rows {
-	db := m.Db()
-	stmt, err := db.Prepare(sqlStr)
+func (m *Model) Query(sqlStr string, params ...interface{}) (*sql.Rows, error) {
+	var (
+		err error
+		stmt *sql.Stmt
+	)
+	db := m.db
+	stmt, err = db.Prepare(sqlStr)
 	if err != nil {
-		log.Panicf("prepare fail: %v", err)
+		return nil, fmt.Errorf("prepare fail: %v", err)
 	}
 	defer stmt.Close()
 	rows, err := stmt.Query(params...)
 	if err != nil {
-		log.Panicf("query fail: %v", err)
+		return nil, fmt.Errorf("query fail: %v", err)
 	}
-	return rows
-}
-
-func (m *Model) GetLastInsertId() int64 {
-	var val int64
-	rows := m.Query("SELECT @@IDENTITY")
-	if rows.Next() {
-		fmt.Printf("get lastID\n")
-		err := rows.Scan(&val)
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	return val
+	return rows, nil
 }
 
 // 创建
-func (m *Model) Create() bool {
-	db := m.Db()
+func (m *Model) Create() error {
+	db := m.db
 	m.builder.p = "insert"
 	fieldNum := m.reflectValue.NumField()
 	m.builder.data = make(map[string]interface{}, fieldNum)
@@ -357,16 +331,16 @@ func (m *Model) Create() bool {
 
 	stmt, err := db.Prepare(sqlStr)
 	if err != nil {
-		log.Panicf("prepare fail: %v", err)
+		return fmt.Errorf("prepare fail: %v", err)
 	}
 	defer stmt.Close()
 
 	var lastId int64
 
-	if m.Config().Driver == "mssql" {
+	if m.config.Driver == "mssql" {
 		result, err := stmt.Query(bindParams...)
 		if err != nil {
-			log.Panicf("query fail: %v", err)
+			return fmt.Errorf("insert exec fail: %v", err)
 		}
 
 		if result.Next() {
@@ -375,23 +349,23 @@ func (m *Model) Create() bool {
 	} else {
 		result, err := stmt.Exec(bindParams...)
 		if err != nil {
-			log.Panicf("query fail: %v", err)
+			return fmt.Errorf("insert exec fail: %v", err)
 		}
 
 		lastId, err = result.LastInsertId()
 		if err != nil {
-			log.Panicf("insert fail: %v", err)
+			return fmt.Errorf("insert getLastInsertId fail: %v", err)
 		}
 	}
 	field := m.reflectValue.FieldByName(m.pk)
 	field.SetInt(lastId)
 
-	return true
+	return nil
 }
 
 // 修改
-func (m *Model) Update() int64 {
-	db := m.Db()
+func (m *Model) Update() error {
+	db := m.db
 	m.builder.p = "update"
 	m.builder.data = structToMap(m.model)
 	if len(m.builder.where) == 0 {
@@ -406,26 +380,26 @@ func (m *Model) Update() int64 {
 
 	stmt, err := db.Prepare(sqlStr)
 	if err != nil {
-		log.Panicf("prepare fail: %v", err)
+		return fmt.Errorf("prepare fail: %v", err)
 	}
 	defer stmt.Close()
 
 	result, err := stmt.Exec(bindParams...)
 	if err != nil {
-		log.Panicf("query fail: %v", err)
+		return fmt.Errorf("query fail: %v", err)
 	}
 
-	rows, err := result.RowsAffected()
+	_, err = result.RowsAffected()
 	if err != nil {
-		log.Panicf("update fail: %v", err)
+		return fmt.Errorf("update fail: %v", err)
 	}
 
-	return rows
+	return nil
 }
 
 // 删除
-func (m *Model) Delete() int64 {
-	db := m.Db()
+func (m *Model) Delete() error {
+	db := m.db
 	m.builder.p = "delete"
 
 	if len(m.builder.where) == 0 {
@@ -439,20 +413,20 @@ func (m *Model) Delete() int64 {
 
 	stmt, err := db.Prepare(sqlStr)
 	if err != nil {
-		log.Panicf("prepare fail: %v", err)
+		return fmt.Errorf("prepare fail: %v", err)
 	}
 	defer stmt.Close()
 
 	result, err := stmt.Exec(bindParams...)
 	if err != nil {
-		log.Panicf("query fail: %v", err)
+		return fmt.Errorf("query fail: %v", err)
 	}
 
-	rows, err := result.RowsAffected()
+	_, err = result.RowsAffected()
 	if err != nil {
-		log.Panicf("delete fail: %v", err)
+		return fmt.Errorf("delete fail: %v", err)
 	}
 
-	return rows
+	return nil
 }
 

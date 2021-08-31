@@ -1,13 +1,13 @@
 package korm
 
 import (
-	"database/sql"
 	"fmt"
 	"strings"
 )
 
 type SqlBuilder struct {
 	model *Model
+	sep string
 	p string
 	table string
 	data map[string]interface{}
@@ -18,24 +18,28 @@ type SqlBuilder struct {
 	having []string
 	offset *int
 	limit *int
-	bindParams []sql.NamedArg
+	bindParams []interface{}
 }
 
 func NewSqlBuilder(model *Model) *SqlBuilder {
-	sql := &SqlBuilder{}
-	sql.model = model
-	sql.where = make([]string, 0)
-	return sql
+	sq := &SqlBuilder{}
+	sq.model = model
+	//if model.Config().Driver == "mysql" {
+	//	sq.sep = "@"
+	//} else {
+	//	sq.sep = ":"
+	//}
+	sq.sep = ":"
+	sq.where = make([]string, 0)
+	return sq
 }
 
 func (t *SqlBuilder) parseField(field string) string {
-	return parseField(t.model.Config().Driver, t.model.reflectType, field)
+	return parseField(t.model.config.Driver, t.model.reflectType, field)
 }
 
-func (t *SqlBuilder) bindParam(field string, value interface{}) string {
-	str := fmt.Sprintf("bind%s%d", field, len(t.bindParams))
-	t.bindParams = append(t.bindParams, sql.Named(str, value))
-	return str
+func (t *SqlBuilder) bindParam(value interface{}) {
+	t.bindParams = append(t.bindParams, value)
 }
 
 func (t *SqlBuilder) AddField(str string) *SqlBuilder {
@@ -62,13 +66,13 @@ func (t *SqlBuilder) AddWhere(logic string, field string, op interface{}, condit
 	} else {
 		value = condition[0]
 	}
-	bindField := t.bindParam(field, value)
+	t.bindParam(value)
 	if len(t.where) == 0 {
 		logic = ""
 	} else {
 		logic = fmt.Sprintf(" %s ", strings.ToUpper(logic))
 	}
-	t.where = append(t.where, fmt.Sprintf("%s%s%s:%s", logic, t.parseField(field), op, bindField))
+	t.where = append(t.where, fmt.Sprintf("%s%s%s?", logic, t.parseField(field), op))
 
 	return t
 }
@@ -91,13 +95,13 @@ func (t *SqlBuilder) AddHaving(logic string, field string, op interface{}, condi
 	} else {
 		value = condition[0]
 	}
-	bindField := t.bindParam(field, value)
+	t.bindParam(value)
 	if len(t.where) == 0 {
 		logic = ""
 	} else {
 		logic = fmt.Sprintf(" %s ", strings.ToUpper(logic))
 	}
-	t.having = append(t.having, fmt.Sprintf("%s%s%s:%s", logic, t.parseField(field), op, bindField))
+	t.having = append(t.having, fmt.Sprintf("%s%s%s?", logic, t.parseField(field), op))
 
 	return t
 }
@@ -117,16 +121,19 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 			str = strings.ReplaceAll(str, "[field]", strings.Join(t.fields, ","))
 		}
 	case "insert":
-		str = "INSERT INTO [table] ([columns]) VALUES ([values]);select ID = convert(bigint, SCOPE_IDENTITY())"
+		str = "INSERT INTO [table] ([columns]) VALUES ([values])"
+		if t.model.config.Driver == "mssql" {
+			str += ";select ID = convert(bigint, SCOPE_IDENTITY())"
+		}
 		keys := make([]string, 0)
 		values := make([]string, 0)
 		for k, v := range t.data {
 			if k == t.model.pk {
 				continue
 			}
-			bindField := t.bindParam(k, v)
+			t.bindParam(v)
 			keys = append(keys, t.parseField(k))
-			values = append(values, fmt.Sprintf(":%s", bindField))
+			values = append(values, "?")
 		}
 		str = strings.ReplaceAll(str, "[columns]", strings.Join(keys, ","))
 		str = strings.ReplaceAll(str, "[values]", strings.Join(values, ","))
@@ -137,8 +144,8 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 			if k == t.model.pk {
 				continue
 			}
-			bindField := t.bindParam(k, v)
-			values = append(values, fmt.Sprintf("%s=:%s", t.parseField(k), bindField))
+			t.bindParam(v)
+			values = append(values, fmt.Sprintf("%s=?", t.parseField(k)))
 		}
 		str = strings.ReplaceAll(str, "[values]", strings.Join(values, ","))
 	case "delete":
@@ -163,7 +170,7 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 	}
 	if t.offset != nil {
 		str += fmt.Sprintf(" OFFSET %d", *t.offset)
-		switch t.model.Config().Driver {
+		switch t.model.config.Driver {
 		case "mssql":
 			str += " ROWS FETCH NEXT [limit] ROWS ONLY"
 		}

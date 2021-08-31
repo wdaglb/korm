@@ -11,7 +11,7 @@ var (
 )
 
 type connect struct {
-	db *sql.DB
+	db *kdb
 	config Config
 }
 
@@ -27,7 +27,7 @@ func SetDefaultConn(conn string)  {
 // 讲struct转为dsn字符
 func configToDsn(config Config) string {
 	switch config.Driver {
-	case "msyql":
+	case "mysql":
 		return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", config.User, config.Pass, config.Host, config.Port, config.Database)
 	case "mssql":
 		return fmt.Sprintf("server=%s;database=%s;user id=%s;password=%s;port=%d;encrypt=disable", config.Host, config.Database, config.User, config.Pass, config.Port)
@@ -51,8 +51,9 @@ func Connect(config Config) (err error) {
 		return
 	}
 
+	kdb := NewDb(db)
 	conn := &connect{
-		db: db,
+		db: kdb,
 		config: config,
 	}
 	if config.Conn == "" {
@@ -73,6 +74,6 @@ func Connect(config Config) (err error) {
 // 关闭所有连接
 func Close() {
 	for _, db := range dbMaps {
-		_ = db.db.Close()
+		_ = db.db.db.Close()
 	}
 }
