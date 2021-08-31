@@ -1,0 +1,179 @@
+package korm
+
+import (
+	"fmt"
+	"reflect"
+	"strconv"
+)
+
+func indirect(reflectValue reflect.Value) reflect.Value {
+	for reflectValue.Kind() == reflect.Ptr {
+		reflectValue = reflectValue.Elem()
+	}
+	return reflectValue
+}
+
+// 解析字段名
+func parseField(driver string, reType reflect.Type, field string) string {
+	var (
+		p reflect.StructField
+		ok bool
+	)
+	p, ok = reType.FieldByName(field)
+	if ok {
+		colName := p.Tag.Get("db")
+		if colName != "" {
+			field = colName
+		}
+	}
+
+	switch driver {
+	case "mssql":
+		return fmt.Sprintf("[%s]", field)
+	case "mysql":
+		return fmt.Sprintf("`%s`", field)
+	default:
+		return field
+	}
+}
+
+func asString(src interface{}) string {
+	switch v := src.(type) {
+	case string:
+		return v
+	case []byte:
+		return string(v)
+	}
+	rv := reflect.ValueOf(src)
+	switch rv.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(rv.Int(), 10)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return strconv.FormatUint(rv.Uint(), 10)
+	case reflect.Float64:
+		return strconv.FormatFloat(rv.Float(), 'g', -1, 64)
+	case reflect.Float32:
+		return strconv.FormatFloat(rv.Float(), 'g', -1, 32)
+	case reflect.Bool:
+		return strconv.FormatBool(rv.Bool())
+	}
+	return fmt.Sprintf("%v", src)
+}
+
+// 调用数据修改器
+func callValue(valueOf reflect.Value) interface{} {
+	if valueOf.Kind() == reflect.Ptr {
+		valueOf = valueOf.Elem()
+	}
+	switch valueOf.Kind() {
+	case reflect.Struct:
+		typeOf := valueOf.Type()
+		method, ok := typeOf.MethodByName("Value")
+
+		if ok {
+			val := method.Func.Call([]reflect.Value{valueOf})
+			// val := method.Func.Call(nil)
+			if len(val) != 2 {
+				return nil
+			}
+
+			newVal := val[0].Interface()
+			return newVal
+		}
+	}
+	return nil
+}
+
+// 调用数据获取器
+func callScan(src interface{}, dv reflect.Value) interface{} {
+	//valueOf2 := valueOf
+	//if valueOf.Kind() == reflect.Ptr {
+	//	valueOf2 = valueOf.Elem()
+	//}
+	sv := reflect.ValueOf(src)
+
+	if dv.Kind() == sv.Kind() && sv.Type().ConvertibleTo(dv.Type()) {
+		dv.Set(sv.Convert(dv.Type()))
+		return nil
+	}
+
+	switch dv.Kind() {
+	case reflect.Ptr:
+		if dv.IsValid() {
+			dv.Set(reflect.New(dv.Type().Elem()))
+
+			dvt := dv.Interface()
+
+			if scanner, ok := dvt.(Scanner); ok {
+				_ = scanner.Scan(src)
+				return nil
+			}
+			return nil
+		}
+		return callScan(src, dv)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if src == nil {
+			return fmt.Errorf("converting NULL to %s is unsupported", dv.Kind())
+		}
+		s := asString(src)
+		val, _ := strconv.ParseInt(s, 10, dv.Type().Bits())
+		dv.SetInt(val)
+	case reflect.String:
+		dv.SetString(src.(string))
+	default:
+		fmt.Printf("type: %v\n", dv.Kind())
+	}
+	return nil
+}
+
+// 结构体转为map
+func structToMap(data interface{}) map[string]interface{} {
+	typeOf := reflect.TypeOf(data)
+	valueOf := reflect.ValueOf(data)
+	if typeOf.Kind() == reflect.Ptr {
+		typeOf = typeOf.Elem()
+	}
+	if valueOf.Kind() == reflect.Ptr {
+		valueOf = valueOf.Elem()
+	}
+	fieldNum := valueOf.NumField()
+	dst := make(map[string]interface{})
+	for i := 0; i < fieldNum; i++ {
+		typeof := typeOf.Field(i)
+		field := valueOf.Field(i)
+		if field.Kind() == reflect.Ptr {
+			dst[typeof.Name] = callValue(field)
+		} else {
+			dst[typeof.Name] = field.Interface()
+		}
+	}
+	return dst
+}
+
+// map转为结构体
+func mapToStruct(data map[string]interface{}, dst interface{})  {
+	typeOf := reflect.TypeOf(dst)
+	valueOf := reflect.ValueOf(dst)
+	if typeOf.Kind() == reflect.Ptr {
+		typeOf = typeOf.Elem()
+	}
+	if valueOf.Kind() == reflect.Ptr {
+		valueOf = valueOf.Elem()
+	}
+	fieldNum := valueOf.NumField()
+	for i := 0; i < fieldNum; i++ {
+		typeofItem := typeOf.Field(i)
+		valueOfItem := valueOf.Field(i)
+		colName := typeofItem.Name
+		if typeofItem.Tag.Get("db") != "" {
+			colName = typeofItem.Tag.Get("db")
+		}
+		// val := data[colName]
+		callScan(data[colName], valueOfItem)
+		//if valueOfItem.Kind() == reflect.Ptr {
+		//	fmt.Printf("colname: %v\n", colName)
+		//} else {
+		//	data[colName] = valueOfItem.Interface()
+		//}
+	}
+}
