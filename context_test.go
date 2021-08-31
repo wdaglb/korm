@@ -33,6 +33,7 @@ func TestContext(t *testing.T)  {
 	if ok, err := ctx.Model(&insertData).Where("Id", insertData.Id).Find(); !ok || err != nil {
 		fmt.Println("记录不存在")
 	}
+	fmt.Printf("id: %v\n", insertData.Id)
 
 	var rows []Test
 	if err := ctx.Model(&rows).Select(); err != nil {
