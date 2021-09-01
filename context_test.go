@@ -16,7 +16,7 @@ type Test struct {
 	Id int64 `db:"id"`
 	User string `db:"user"`
 	TestId int `db:"test_id"`
-	CreateTime sqltype.Timestamp `db:"create_time"`
+	CreateTime *sqltype.Timestamp `db:"create_time"`
 	Cate TestCate `db:"cate"`
 }
 
@@ -126,7 +126,7 @@ func TestSelect(t *testing.T)  {
 	if err := ctx.Model(&rows).OrderByDesc("Id").Limit(3).Select(); err != nil {
 		t.Fatalf("select fail: %v", err)
 	}
-	fmt.Printf("rows: %d, %v\n", rows[0].Id, time.Time(rows[0].CreateTime).Format(time.RFC3339Nano))
+	fmt.Printf("rows: %d, %v\n", rows[0].Id, time.Time(*rows[0].CreateTime).Format(time.RFC3339Nano))
 }
 
 // 测试单行查询
@@ -138,7 +138,7 @@ func TestFind(t *testing.T)  {
 	if ok, err := ctx.Model(&row).Find(); !ok || err != nil {
 		t.Fatalf("记录不存在")
 	}
-	fmt.Printf("row: %d, %v\n", row.Id, time.Time(row.CreateTime).Format(time.RFC3339Nano))
+	fmt.Printf("row: %d, %v\n", row.Id, time.Time(*row.CreateTime).Format(time.RFC3339Nano))
 }
 
 // 测试数据删除

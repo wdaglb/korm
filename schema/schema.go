@@ -118,7 +118,7 @@ func (schema *Schema) SetFieldValue(name string, value interface{}) error {
 }
 
 // 设置结构值
-func (schema *Schema) SetStructValue(src interface{}, dst reflect.Value) error {
+func (schema *Schema) SetStructValue(src interface{}, dst reflect.Value) (err error) {
 	if src == nil {
 		return nil
 	}
@@ -143,13 +143,24 @@ func (schema *Schema) SetStructValue(src interface{}, dst reflect.Value) error {
 		return schema.SetStructValue(src, dst)
 	case reflect.Struct:
 		if dst.IsValid() {
-			var dvt interface{}
-			dst.Set(reflect.New(dst.Type()))
-
-			dvt = dst.Interface()
+			var (
+				dvt interface{}
+				newVal reflect.Value
+				isPtr = dst.Type().Kind() == reflect.Ptr
+			)
+			if isPtr {
+				dst.Set(reflect.New(dst.Type()))
+				dvt = dst.Interface()
+			} else {
+				newVal = reflect.New(dst.Type())
+				dvt = newVal.Interface()
+			}
 
 			if scanner, ok := dvt.(mixins.Scanner); ok {
-				return scanner.Scan(src)
+				err = scanner.Scan(src)
+			}
+			if !isPtr {
+				dst.Set(newVal.Elem())
 			}
 		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -178,7 +189,7 @@ func (schema *Schema) SetStructValue(src interface{}, dst reflect.Value) error {
 	default:
 		fmt.Printf("type: %v\n", dst.Kind())
 	}
-	return nil
+	return
 }
 
 // 为数组添加元素
