@@ -210,10 +210,6 @@ func CallValue(valueOf reflect.Value) interface{} {
 
 // 调用数据获取器
 func CallScan(src interface{}, dv reflect.Value) interface{} {
-	//valueOf2 := valueOf
-	//if valueOf.Kind() == reflect.Ptr {
-	//	valueOf2 = valueOf.Elem()
-	//}
 	sv := reflect.ValueOf(src)
 
 	if src == nil {

@@ -54,10 +54,16 @@ func (t *Timestamp) Scan(value interface{}) error {
 	case int64:
 		now := time.Unix(ty, 0)
 		*t = Timestamp(now)
+	case int:
+		now := time.Unix(int64(ty), 0)
+		*t = Timestamp(now)
 	case []byte:
 		now := fmt.Sprintf("%v", string(ty))
 		val, _ := strconv.ParseInt(now, 0, 64)
 		*t = Timestamp(time.Unix(val, 0))
+	case string:
+		now, _ := strconv.ParseInt(ty, 10, 64)
+		*t = Timestamp(time.Unix(now, 0))
 	default:
 		return errors.New("time format failed")
 	}

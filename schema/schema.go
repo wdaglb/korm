@@ -122,7 +122,6 @@ func (schema *Schema) SetStructValue(src interface{}, dst reflect.Value) error {
 	if src == nil {
 		return nil
 	}
-	dst = utils.Indirect(dst)
 	sv := utils.Indirect(reflect.ValueOf(src))
 	if dst.Kind() == sv.Kind() && sv.Type().ConvertibleTo(dst.Type()) {
 		dst.Set(sv.Convert(dst.Type()))
@@ -137,12 +136,22 @@ func (schema *Schema) SetStructValue(src interface{}, dst reflect.Value) error {
 			dvt := dst.Interface()
 
 			if scanner, ok := dvt.(mixins.Scanner); ok {
-				_ = scanner.Scan(src)
-				return nil
+				return scanner.Scan(src)
 			}
 			return nil
 		}
 		return schema.SetStructValue(src, dst)
+	case reflect.Struct:
+		if dst.IsValid() {
+			var dvt interface{}
+			dst.Set(reflect.New(dst.Type()))
+
+			dvt = dst.Interface()
+
+			if scanner, ok := dvt.(mixins.Scanner); ok {
+				return scanner.Scan(src)
+			}
+		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		if src == nil {
 			return fmt.Errorf("converting NULL to %s is unsupported", dst.Kind())
@@ -175,12 +184,15 @@ func (schema *Schema) SetStructValue(src interface{}, dst reflect.Value) error {
 // 为数组添加元素
 func (schema *Schema) AddArrayItem(data map[string]interface{}) {
 	newValue := reflect.New(schema.Type)
-	newValue = newValue.Elem()
+	newValue = utils.Indirect(newValue)
 
 	for i := 0; i < len(schema.Fields); i++ {
 		field := schema.Fields[i]
 		fieldValue := newValue.Field(i)
-		_ = schema.SetStructValue(data[field.ColumnName], fieldValue)
+		if err := schema.SetStructValue(data[field.ColumnName], fieldValue); err != nil {
+			fmt.Printf("error: %v\n", err)
+		}
+
 		// asValue(ret[colName], p, fieldValue)
 	}
 	tmp := reflect.Append(schema.Data, newValue)

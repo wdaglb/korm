@@ -163,13 +163,6 @@ func (m *Model) Select() error {
 		m.schema.AddArrayItem(ret)
 	}
 
-	//newValue := reflect.New(baseType)
-	//oldValue := reflect.ValueOf(m.model)
-	//oldValue.Set(newValue)
-	//for _, v := range maps {
-	//
-	//}
-
 	return nil
 }
 
