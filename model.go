@@ -4,19 +4,18 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/wdaglb/korm/schema"
+	"github.com/wdaglb/korm/utils"
 	"reflect"
 )
 
 type Model struct {
 	db *kdb
 	config Config
-	table string
 	model interface{}
 	context *Context
-	pk string
 	builder *SqlBuilder
-	reflectValue reflect.Value
-	reflectType reflect.Type
+	schema *schema.Schema
 }
 
 // 转为map
@@ -100,7 +99,7 @@ func (m *Model) HavingOr(field string, op interface{}, condition ...interface{})
 
 // 获取一行数据
 func (m *Model) Find() (bool, error) {
-	if m.table == "" {
+	if m.schema.TableName == "" {
 		return false, errors.New("table is not set")
 	}
 	db := m.db
@@ -125,7 +124,7 @@ func (m *Model) Find() (bool, error) {
 			return true, fmt.Errorf("res to map fail: %v", err)
 		}
 
-		mapToStruct(ret, m.model)
+		utils.MapToStruct(ret, m.model)
 		return true, nil
 	}
 
@@ -134,7 +133,7 @@ func (m *Model) Find() (bool, error) {
 
 // 获取数据集
 func (m *Model) Select() error {
-	if m.table == "" {
+	if m.schema.TableName == "" {
 		return errors.New("table is not set")
 	}
 	db := m.db
@@ -153,11 +152,7 @@ func (m *Model) Select() error {
 	}
 	defer rows.Close()
 
-	baseType := m.reflectType
-
-	fieldNum := baseType.NumField()
 	maps := make([]map[string]interface{}, 0)
-
 	for rows.Next() {
 		ret, err := m.toMap(rows)
 		if err != nil {
@@ -165,20 +160,7 @@ func (m *Model) Select() error {
 		}
 		maps = append(maps, ret)
 
-		newValue := reflect.New(baseType)
-		newValue = newValue.Elem()
-		for i := 0; i < fieldNum; i++ {
-			field := baseType.Field(i)
-			colName := field.Tag.Get("db")
-			if colName == "" {
-				colName = field.Name
-			}
-			fieldValue := newValue.FieldByName(field.Name)
-			callScan(ret[colName], fieldValue)
-			// asValue(ret[colName], p, fieldValue)
-		}
-		tmp := reflect.Append(m.reflectValue, newValue)
-		m.reflectValue.Set(tmp)
+		m.schema.AddArrayItem(ret)
 	}
 
 	//newValue := reflect.New(baseType)
@@ -187,15 +169,13 @@ func (m *Model) Select() error {
 	//for _, v := range maps {
 	//
 	//}
-	collection := &Collection{}
-	collection.model = m
 
 	return nil
 }
 
 // 获取一列数据
 func (m *Model) Value(col string, dst interface{}) (bool, error) {
-	if m.table == "" {
+	if m.schema.TableName == "" {
 		return false, fmt.Errorf("table is not set")
 	}
 	db := m.db
@@ -227,7 +207,7 @@ func (m *Model) Value(col string, dst interface{}) (bool, error) {
 		if value.Kind() == reflect.Ptr {
 			value = value.Elem()
 		}
-		asValue(ret[col], p, value)
+		utils.CallScan(ret[col], value)
 
 		return true, nil
 	}
@@ -238,7 +218,7 @@ func (m *Model) Value(col string, dst interface{}) (bool, error) {
 // 是否存在记录
 func (m *Model) Exist() bool {
 	m.builder.fields = []string{}
-	ok, err := m.Field(m.pk).Find()
+	ok, err := m.Field(m.schema.PrimaryKey).Find()
 	return ok && err == nil
 }
 
@@ -252,7 +232,7 @@ func (m *Model) Count() (int64, error) {
 
 // 求和
 func (m *Model) Sum(col string, dst interface{}) error {
-	p := parseField(m.config.Driver, m.reflectType, col)
+	p := utils.ParseField(m.config.Driver, m.schema.Type, col)
 	m.builder.fields = []string{fmt.Sprintf("SUM(%s) AS __SUM__", p)}
 	_, err := m.Value("__SUM__", dst)
 	return err
@@ -260,7 +240,7 @@ func (m *Model) Sum(col string, dst interface{}) error {
 
 // 最大值
 func (m *Model) Max(col string, dst interface{}) error {
-	p := parseField(m.config.Driver, m.reflectType, col)
+	p := utils.ParseField(m.config.Driver, m.schema.Type, col)
 	m.builder.fields = []string{fmt.Sprintf("MAX(%s) AS __VALUE__", p)}
 	_, err := m.Value("__VALUE__", dst)
 	return err
@@ -268,16 +248,16 @@ func (m *Model) Max(col string, dst interface{}) error {
 
 // 最小值
 func (m *Model) Min(col string, dst interface{}) error {
-	p := parseField(m.config.Driver, m.reflectType, col)
+	p := utils.ParseField(m.config.Driver, m.schema.Type, col)
 	m.builder.fields = []string{fmt.Sprintf("MIN(%s) AS __VALUE__", p)}
 	_, err := m.Value("__VALUE__", dst)
 	return err
 }
 
 // 平均值
-func (m *Model) Avg(col string, dst interface{}) error {
-	p := parseField(m.config.Driver, m.reflectType, col)
-	m.builder.fields = []string{fmt.Sprintf("Avg(%s) AS __VALUE__", p)}
+func (m *Model) Avg(col string, dst *float64) error {
+	p := utils.ParseField(m.config.Driver, m.schema.Type, col)
+	m.builder.fields = []string{fmt.Sprintf("AVG(%s) AS __VALUE__", p)}
 	_, err := m.Value("__VALUE__", dst)
 	return err
 }
@@ -305,13 +285,11 @@ func (m *Model) Query(sqlStr string, params ...interface{}) (*sql.Rows, error) {
 func (m *Model) Create() error {
 	db := m.db
 	m.builder.p = "insert"
-	fieldNum := m.reflectValue.NumField()
+	fieldNum := len(m.schema.Fields)
 	m.builder.data = make(map[string]interface{}, fieldNum)
 	for i := 0; i < fieldNum; i++ {
-		typeof := m.reflectType.Field(i)
-		field := m.reflectValue.Field(i)
-		fmt.Printf("type: %v\n", typeof.Type.Kind())
-		m.builder.datal[typeof.Name] = field.Interface()
+		field := m.schema.Fields[i]
+		m.builder.data[field.Name] = m.schema.GetFieldValue(field.Name)
 	}
 	sqlStr, bindParams := m.builder.ToString()
 
@@ -343,8 +321,8 @@ func (m *Model) Create() error {
 			return fmt.Errorf("insert getLastInsertId fail: %v", err)
 		}
 	}
-	field := m.reflectValue.FieldByName(m.pk)
-	field.SetInt(lastId)
+
+	_ = m.schema.SetFieldValue(m.schema.PrimaryKey, lastId)
 
 	return nil
 }
@@ -353,11 +331,10 @@ func (m *Model) Create() error {
 func (m *Model) Update() error {
 	db := m.db
 	m.builder.p = "update"
-	m.builder.data = structToMap(m.model)
+	m.builder.data = utils.StructToMap(m.model)
 	if m.builder.where == nil {
-		id := m.reflectValue.FieldByName(m.pk).Int()
-		if id > 0 {
-			m.Where("Id", id)
+		if pkValue := m.schema.GetFieldValue(m.schema.PrimaryKey); pkValue != nil {
+			m.Where(m.schema.PrimaryKey, pkValue)
 		}
 	}
 	sqlStr, bindParams := m.builder.ToString()
@@ -387,9 +364,8 @@ func (m *Model) Delete() error {
 	m.builder.p = "delete"
 
 	if m.builder.where == nil {
-		id := m.reflectValue.FieldByName(m.pk).Int()
-		if id > 0 {
-			m.Where("Id", id)
+		if pkValue := m.schema.GetFieldValue(m.schema.PrimaryKey); pkValue != nil {
+			m.Where(m.schema.PrimaryKey, pkValue)
 		}
 	}
 	sqlStr, bindParams := m.builder.ToString()

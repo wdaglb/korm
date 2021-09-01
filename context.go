@@ -2,19 +2,11 @@ package korm
 
 import (
 	"fmt"
-	"reflect"
+	"github.com/wdaglb/korm/schema"
 )
 
 type Context struct {
 	conn string
-}
-
-type ModelTable interface {
-	Table() string
-}
-
-type ModelPk interface {
-	Pk() string
 }
 
 type TransactionCall func() error
@@ -74,25 +66,9 @@ func (ctx *Context) Model(mod interface{}) *Model {
 	model.config = ctx.Config()
 	model.db = ctx.Db()
 	model.model = mod
+	model.schema = schema.NewSchema(mod)
 
-	model.reflectType = reflect.TypeOf(mod)
-	for model.reflectType.Kind() == reflect.Slice || model.reflectType.Kind() == reflect.Array || model.reflectType.Kind() == reflect.Ptr {
-		model.reflectType = model.reflectType.Elem()
-	}
-	modelValue := reflect.New(model.reflectType)
-	model.pk = "Id"
-	if ext, ok := modelValue.Interface().(ModelTable); ok {
-		model.table = ext.Table()
-	} else {
-		model.table = Camel2Case(model.reflectType.Name())
-	}
-	if ext, ok := modelValue.Interface().(ModelPk); ok {
-		model.pk = ext.Pk()
-	}
-
-	model.builder = NewSqlBuilder(model)
-	model.builder.table = model.table
-	model.reflectValue = indirect(reflect.ValueOf(mod))
+	model.builder = NewSqlBuilder(model, model.schema)
 
 	return model
 }

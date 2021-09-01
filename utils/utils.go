@@ -1,12 +1,14 @@
-package korm
+package utils
 
 import (
 	"bytes"
 	"fmt"
+	"github.com/wdaglb/korm/mixins"
 	"log"
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -98,7 +100,7 @@ func Case2Camel(name string) string {
 }
 
 // 解析字段名
-func parseField(driver string, reType reflect.Type, field string) string {
+func ParseField(driver string, reType reflect.Type, field string) string {
 	var (
 		p reflect.StructField
 		ok bool
@@ -121,7 +123,7 @@ func parseField(driver string, reType reflect.Type, field string) string {
 	}
 }
 
-func asString(src interface{}) string {
+func AsString(src interface{}) string {
 	switch v := src.(type) {
 	case string:
 		return v
@@ -144,8 +146,46 @@ func asString(src interface{}) string {
 	return fmt.Sprintf("%v", src)
 }
 
+func Indirect(value reflect.Value) reflect.Value {
+	if value.Kind() == reflect.Ptr {
+		value = value.Elem()
+		return Indirect(value)
+	}
+	return value
+}
+
+func IndirectType(value reflect.Type) reflect.Type {
+	if value.Kind() == reflect.Ptr {
+		value = value.Elem()
+		return IndirectType(value)
+	}
+	return value
+}
+
+
+// 转为value
+func AsValue(data interface{}, p reflect.Type, value reflect.Value) {
+	switch p.Name() {
+	case "Time":
+		t, _ := time.Parse(time.RFC3339, data.(string))
+		newVal := reflect.ValueOf(t)
+		value.Set(newVal)
+		return
+	}
+
+	switch p.Kind() {
+	case reflect.Int64, reflect.Int:
+		val, _ := strconv.ParseInt(data.(string), 10, 64)
+		value.SetInt(val)
+	case reflect.String:
+		value.SetString(data.(string))
+	default:
+		fmt.Printf("type: %v\n", p)
+	}
+}
+
 // 调用数据修改器
-func callValue(valueOf reflect.Value) interface{} {
+func CallValue(valueOf reflect.Value) interface{} {
 	if valueOf.Kind() == reflect.Ptr {
 		valueOf = valueOf.Elem()
 	}
@@ -169,7 +209,7 @@ func callValue(valueOf reflect.Value) interface{} {
 }
 
 // 调用数据获取器
-func callScan(src interface{}, dv reflect.Value) interface{} {
+func CallScan(src interface{}, dv reflect.Value) interface{} {
 	//valueOf2 := valueOf
 	//if valueOf.Kind() == reflect.Ptr {
 	//	valueOf2 = valueOf.Elem()
@@ -191,32 +231,32 @@ func callScan(src interface{}, dv reflect.Value) interface{} {
 
 			dvt := dv.Interface()
 
-			if scanner, ok := dvt.(Scanner); ok {
+			if scanner, ok := dvt.(mixins.Scanner); ok {
 				_ = scanner.Scan(src)
 				return nil
 			}
 			return nil
 		}
-		return callScan(src, dv)
+		return CallScan(src, dv)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		if src == nil {
 			return fmt.Errorf("converting NULL to %s is unsupported", dv.Kind())
 		}
-		s := asString(src)
+		s := AsString(src)
 		val, _ := strconv.ParseInt(s, 10, dv.Type().Bits())
 		dv.SetInt(val)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		if src == nil {
 			return fmt.Errorf("converting NULL to %s is unsupported", dv.Kind())
 		}
-		s := asString(src)
+		s := AsString(src)
 		val, _ := strconv.ParseUint(s, 10, dv.Type().Bits())
 		dv.SetUint(val)
 	case reflect.Float32, reflect.Float64:
 		if src == nil {
 			return fmt.Errorf("converting NULL to %s is unsupported", dv.Kind())
 		}
-		s := asString(src)
+		s := AsString(src)
 		val, _ := strconv.ParseFloat(s, dv.Type().Bits())
 		dv.SetFloat(val)
 	case reflect.String:
@@ -228,16 +268,16 @@ func callScan(src interface{}, dv reflect.Value) interface{} {
 }
 
 // 结构体转为map
-func structToMap(data interface{}) map[string]interface{} {
-	typeOf := indirectType(reflect.TypeOf(data))
-	valueOf := indirect(reflect.ValueOf(data))
+func StructToMap(data interface{}) map[string]interface{} {
+	typeOf := IndirectType(reflect.TypeOf(data))
+	valueOf := Indirect(reflect.ValueOf(data))
 	fieldNum := valueOf.NumField()
 	dst := make(map[string]interface{})
 	for i := 0; i < fieldNum; i++ {
 		typeof := typeOf.Field(i)
 		field := valueOf.Field(i)
 		if field.Kind() == reflect.Ptr {
-			dst[typeof.Name] = callValue(field)
+			dst[typeof.Name] = CallValue(field)
 		} else {
 			dst[typeof.Name] = field.Interface()
 		}
@@ -245,26 +285,10 @@ func structToMap(data interface{}) map[string]interface{} {
 	return dst
 }
 
-func indirect(value reflect.Value) reflect.Value {
-	if value.Kind() == reflect.Ptr {
-		value = value.Elem()
-		return indirect(value)
-	}
-	return value
-}
-
-func indirectType(p reflect.Type) reflect.Type {
-	if p.Kind() == reflect.Ptr {
-		p = p.Elem()
-		return indirectType(p)
-	}
-	return p
-}
-
 // map转为结构体
-func mapToStruct(data map[string]interface{}, dst interface{})  {
-	typeOf := indirectType(reflect.TypeOf(dst))
-	valueOf := indirect(reflect.ValueOf(dst))
+func MapToStruct(data map[string]interface{}, dst interface{})  {
+	typeOf := IndirectType(reflect.TypeOf(dst))
+	valueOf := Indirect(reflect.ValueOf(dst))
 
 	// fmt.Printf("vvv: %v\n", dst)
 	fieldNum := valueOf.NumField()
@@ -276,7 +300,7 @@ func mapToStruct(data map[string]interface{}, dst interface{})  {
 			colName = typeofItem.Tag.Get("db")
 		}
 		// val := data[colName]
-		callScan(data[colName], valueOfItem)
+		CallScan(data[colName], valueOfItem)
 		//if valueOfItem.Kind() == reflect.Ptr {
 		//	fmt.Printf("colname: %v\n", colName)
 		//} else {

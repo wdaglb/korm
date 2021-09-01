@@ -2,6 +2,8 @@ package korm
 
 import (
 	"fmt"
+	"github.com/wdaglb/korm/schema"
+	"github.com/wdaglb/korm/utils"
 	"strings"
 )
 
@@ -9,7 +11,7 @@ type SqlBuilder struct {
 	model *Model
 	sep string
 	p string
-	table string
+	schema *schema.Schema
 	data map[string]interface{}
 	fields []string
 	orders []string
@@ -21,9 +23,10 @@ type SqlBuilder struct {
 	bindParams []interface{}
 }
 
-func NewSqlBuilder(model *Model) *SqlBuilder {
+func NewSqlBuilder(model *Model, schema *schema.Schema) *SqlBuilder {
 	sq := &SqlBuilder{}
 	sq.model = model
+	sq.schema = schema
 	//if model.Config().Driver == "mysql" {
 	//	sq.sep = "@"
 	//} else {
@@ -34,7 +37,7 @@ func NewSqlBuilder(model *Model) *SqlBuilder {
 }
 
 func (t *SqlBuilder) parseField(field string) string {
-	return parseField(t.model.config.Driver, t.model.reflectType, field)
+	return utils.ParseField(t.model.config.Driver, t.schema.Type, field)
 }
 
 func (t *SqlBuilder) bindParam(value interface{}) {
@@ -131,7 +134,7 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 		keys := make([]string, 0)
 		values := make([]string, 0)
 		for k, v := range t.data {
-			if k == t.model.pk {
+			if k == t.schema.PrimaryKey {
 				continue
 			}
 			t.bindParam(v)
@@ -144,7 +147,7 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 		str = "UPDATE [table] SET [values]"
 		values := make([]string, 0)
 		for k, v := range t.data {
-			if k == t.model.pk {
+			if k == t.schema.PrimaryKey {
 				continue
 			}
 			t.bindParam(v)
@@ -154,7 +157,7 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 	case "delete":
 		str = "DELETE FROM [table]"
 	}
-	str = strings.ReplaceAll(str, "[table]", t.table)
+	str = strings.ReplaceAll(str, "[table]", t.schema.TableName)
 
 	switch t.p {
 	case "select", "update", "delete":

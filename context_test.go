@@ -14,7 +14,7 @@ type Test struct {
 	Id int64 `db:"id"`
 	User string `db:"user"`
 	TestId int `db:"test_id"`
-	Cate *TestCate
+	Cate *TestCate `db:"cate"`
 }
 
 type TestCate struct {
@@ -77,7 +77,7 @@ func TestMin(t *testing.T)  {
 // 测试平均值查询
 func TestAvg(t *testing.T)  {
 	ctx := &Context{}
-	dst := 0
+	var dst float64
 	_ = ctx.Model(Test{}).Avg("Id", &dst)
 
 	t.Logf("avg: %v\n", dst)
@@ -123,6 +123,7 @@ func TestSelect(t *testing.T)  {
 	if err := ctx.Model(&rows).OrderByDesc("Id").Limit(3).Select(); err != nil {
 		t.Fatalf("select fail: %v", err)
 	}
+	fmt.Printf("rows: %v\n", rows)
 }
 
 // 测试单行查询
