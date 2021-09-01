@@ -13,6 +13,13 @@ import (
 type Test struct {
 	Id int64 `db:"id"`
 	User string `db:"user"`
+	TestId int `db:"test_id"`
+	Cate *TestCate
+}
+
+type TestCate struct {
+	Id int64 `db:"id"`
+	Name string `db:"name"`
 }
 
 func init()  {

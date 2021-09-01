@@ -310,7 +310,8 @@ func (m *Model) Create() error {
 	for i := 0; i < fieldNum; i++ {
 		typeof := m.reflectType.Field(i)
 		field := m.reflectValue.Field(i)
-		m.builder.data[typeof.Name] = field.Interface()
+		fmt.Printf("type: %v\n", typeof.Type.Kind())
+		m.builder.datal[typeof.Name] = field.Interface()
 	}
 	sqlStr, bindParams := m.builder.ToString()
 
