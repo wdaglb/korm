@@ -15,6 +15,7 @@ const (
 )
 
 type Field struct {
+	Schema *Schema
 	Name string
 	ColumnName string
 	DataType string
@@ -23,4 +24,28 @@ type Field struct {
 	TagSetting map[string]string
 	FieldType reflect.Type
 	IndirectFieldType reflect.Type
+}
+
+func (field *Field) GetColumnName() string {
+	col := field.Tag.Get("db")
+	if col == "" {
+		return field.Name
+	}
+	return col
+}
+
+func (field *Field) GetPrimaryKey() string {
+	val := field.Tag.Get("pk")
+	if val == "" {
+		return field.Schema.FieldNameToColumnName(field.Schema.PrimaryKey)
+	}
+	return field.Schema.FieldNameToColumnName(val)
+}
+
+func (field *Field) GetForeignKey() string {
+	val := field.Tag.Get("fk")
+	if val == "" {
+		return field.Schema.FieldNameToColumnName(field.Name + field.Schema.PrimaryKey)
+	}
+	return field.Schema.FieldNameToColumnName(val)
 }

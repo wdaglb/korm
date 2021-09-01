@@ -3,7 +3,6 @@ package schema
 import (
 	"fmt"
 	"github.com/wdaglb/korm/mixins"
-	"github.com/wdaglb/korm/relation"
 	"github.com/wdaglb/korm/utils"
 	"go/ast"
 	"reflect"
@@ -18,7 +17,7 @@ type Schema struct {
 	Data reflect.Value
 	Fields []*Field
 	FieldNames map[string]*Field
-	Relations map[string]*relation.Relation
+	Relations map[string]*Relation
 }
 
 func NewSchema(data interface{}) *Schema {
@@ -37,6 +36,7 @@ func NewSchema(data interface{}) *Schema {
 	if ext, ok := schema.Data.Interface().(mixins.ModelPk); ok {
 		schema.PrimaryKey = ext.Pk()
 	}
+	schema.Relations = make(map[string]*Relation)
 	schema.FieldNames = make(map[string]*Field)
 	for i := 0; i < schema.Type.NumField(); i++ {
 		if fieldStruct := schema.Type.Field(i); ast.IsExported(fieldStruct.Name) {
@@ -48,12 +48,19 @@ func NewSchema(data interface{}) *Schema {
 	return schema
 }
 
+func (schema *Schema) IsArray() bool {
+	typ := schema.Data.Type()
+	return typ.Kind() == reflect.Slice || typ.Kind() == reflect.Array
+}
+
+// 添加字段
 func (schema *Schema) AddField(structField reflect.StructField) *Field {
 	field := &Field{
-		Name:              structField.Name,
-		Tag:               structField.Tag,
-		StructField:       structField,
-		FieldType:         structField.Type,
+		Schema: schema,
+		Name: structField.Name,
+		Tag: structField.Tag,
+		StructField: structField,
+		FieldType: structField.Type,
 		IndirectFieldType: utils.IndirectType(structField.Type),
 	}
 
@@ -83,6 +90,14 @@ func (schema *Schema) AddField(structField reflect.StructField) *Field {
 			field.DataType = Time
 		} else if fieldValue.Type().ConvertibleTo(reflect.TypeOf(&time.Time{})) {
 			field.DataType = Time
+		} else {
+			dvt := fieldValue.Interface()
+
+			if _, ok := dvt.(mixins.Scanner); ok {
+				fmt.Printf("获取器")
+			} else {
+				schema.loadRelation(field, fieldValue)
+			}
 		}
 	case reflect.Array, reflect.Slice:
 		if reflect.Indirect(fieldValue).Type().Elem() == reflect.TypeOf(uint8(0)) {
@@ -93,8 +108,29 @@ func (schema *Schema) AddField(structField reflect.StructField) *Field {
 	return field
 }
 
+// 加载关联模型
+func (schema *Schema) loadRelation(field *Field, value reflect.Value) {
+	typ := utils.IndirectType(value.Type())
+	name := field.Name
+	schema.Relations[name] = &Relation{
+		HasType: typ,
+		HasModel: value.Interface(),
+		Field: field,
+	}
+}
+
 func (schema *Schema) GetFieldName(name string) *Field {
 	return schema.FieldNames[name]
+}
+
+// 字段修改为数据库字段名
+func (schema *Schema) FieldNameToColumnName(col string) string {
+	for f, v := range schema.FieldNames {
+		if col == f {
+			return v.GetColumnName()
+		}
+	}
+	return col
 }
 
 // 获取字段值
@@ -192,6 +228,21 @@ func (schema *Schema) SetStructValue(src interface{}, dst reflect.Value) (err er
 	return
 }
 
+// 获取结构值
+func (schema *Schema) GetStructValue(name string) reflect.Value {
+	return schema.Data.FieldByName(name)
+}
+
+// 获取数组元素的结构值
+func (schema *Schema) GetArrayStructValue(index int, name string) reflect.Value {
+	return schema.Data.Index(index).FieldByName(name)
+}
+
+// 获取数组长度
+func (schema *Schema) GetArrayLength() int {
+	return schema.Data.Len()
+}
+
 // 为数组添加元素
 func (schema *Schema) AddArrayItem(data map[string]interface{}) {
 	newValue := reflect.New(schema.Type)
@@ -200,8 +251,11 @@ func (schema *Schema) AddArrayItem(data map[string]interface{}) {
 	for i := 0; i < len(schema.Fields); i++ {
 		field := schema.Fields[i]
 		fieldValue := newValue.Field(i)
-		if err := schema.SetStructValue(data[field.ColumnName], fieldValue); err != nil {
-			fmt.Printf("error: %v\n", err)
+
+		if field.DataType != "" {
+			if err := schema.SetStructValue(data[field.ColumnName], fieldValue); err != nil {
+				fmt.Printf("error: %v\n", err)
+			}
 		}
 
 		// asValue(ret[colName], p, fieldValue)

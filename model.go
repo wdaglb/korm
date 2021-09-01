@@ -16,6 +16,7 @@ type Model struct {
 	context *Context
 	builder *SqlBuilder
 	schema *schema.Schema
+	withList []string
 }
 
 // 转为map
@@ -36,6 +37,12 @@ func (m *Model) toMap(rows *sql.Rows) (map[string]interface{}, error) {
 	}
 
 	return row, nil
+}
+
+// 关联加载
+func (m *Model) With(list ...string) *Model {
+	m.withList = append(m.withList, list...)
+	return m
 }
 
 func (m *Model) Field(str string) *Model {
@@ -118,17 +125,24 @@ func (m *Model) Find() (bool, error) {
 	}
 	defer rows.Close()
 
-	if rows.Next() {
-		ret, err := m.toMap(rows)
-		if err != nil {
-			return true, fmt.Errorf("res to map fail: %v", err)
-		}
-
-		utils.MapToStruct(ret, m.model)
-		return true, nil
+	if !rows.Next() {
+		return false, nil
 	}
 
-	return false, nil
+	ret, err := m.toMap(rows)
+	if err != nil {
+		return true, fmt.Errorf("res to map fail: %v", err)
+	}
+
+	for k, v := range m.schema.FieldNames {
+		if err := m.schema.SetFieldValue(k, ret[v.ColumnName]); err != nil {
+			return false, err
+		}
+	}
+	if err := m.loadRelationData(ret); err != nil {
+		return true, err
+	}
+	return true, nil
 }
 
 // 获取数据集

@@ -9,7 +9,6 @@ import (
 	"os"
 	"strconv"
 	"testing"
-	"time"
 )
 
 type Test struct {
@@ -17,7 +16,7 @@ type Test struct {
 	User string `db:"user"`
 	TestId int `db:"test_id"`
 	CreateTime *sqltype.Timestamp `db:"create_time"`
-	Cate TestCate `db:"cate"`
+	Cate TestCate `db:"cate" pk:"Id" fk:"TestId"`
 }
 
 type TestCate struct {
@@ -44,7 +43,7 @@ func init()  {
 
 // 测试统计查询
 func TestCount(t *testing.T)  {
-	ctx := &Context{}
+	ctx := NewContext()
 	count, _ := ctx.Model(Test{}).Count()
 
 	t.Logf("count: %v\n", count)
@@ -52,7 +51,7 @@ func TestCount(t *testing.T)  {
 
 // 测试求和查询
 func TestSum(t *testing.T)  {
-	ctx := &Context{}
+	ctx := NewContext()
 	dst := 0
 	_ = ctx.Model(Test{}).Sum("Id", &dst)
 
@@ -61,7 +60,7 @@ func TestSum(t *testing.T)  {
 
 // 测试最大值查询
 func TestMax(t *testing.T)  {
-	ctx := &Context{}
+	ctx := NewContext()
 	dst := 0
 	_ = ctx.Model(Test{}).Max("Id", &dst)
 
@@ -70,7 +69,7 @@ func TestMax(t *testing.T)  {
 
 // 测试最小值查询
 func TestMin(t *testing.T)  {
-	ctx := &Context{}
+	ctx := NewContext()
 	dst := 0
 	_ = ctx.Model(Test{}).Min("Id", &dst)
 
@@ -79,7 +78,7 @@ func TestMin(t *testing.T)  {
 
 // 测试平均值查询
 func TestAvg(t *testing.T)  {
-	ctx := &Context{}
+	ctx := NewContext()
 	var dst float64
 	_ = ctx.Model(Test{}).Avg("Id", &dst)
 
@@ -88,7 +87,7 @@ func TestAvg(t *testing.T)  {
 
 // 测试数据创建
 func TestCreate(t *testing.T)  {
-	ctx := &Context{}
+	ctx := NewContext()
 
 	insertData := &Test{
 		User: "test",
@@ -105,7 +104,7 @@ func TestCreate(t *testing.T)  {
 
 // 测试数据更新
 func TestUpdate(t *testing.T)  {
-	ctx := &Context{}
+	ctx := NewContext()
 	row := &Test{}
 
 	if ok, err := ctx.Model(&row).Find(); !ok || err != nil {
@@ -120,30 +119,30 @@ func TestUpdate(t *testing.T)  {
 
 // 测试多行查询
 func TestSelect(t *testing.T)  {
-	ctx := &Context{}
+	ctx := NewContext()
 	var rows []Test
 	// Where("Id", "in", []int{1, 2, 3, 4}).
-	if err := ctx.Model(&rows).OrderByDesc("Id").Limit(3).Select(); err != nil {
+	if err := ctx.Model(&rows).With("Cate").OrderByDesc("Id").Limit(3).Select(); err != nil {
 		t.Fatalf("select fail: %v", err)
 	}
-	fmt.Printf("rows: %d, %v\n", rows[0].Id, time.Time(*rows[0].CreateTime).Format(time.RFC3339Nano))
+	fmt.Printf("rows: %d, %v\n", rows[0].Id, rows[0].Cate.Name)
 }
 
 // 测试单行查询
 func TestFind(t *testing.T)  {
-	ctx := &Context{}
+	ctx := NewContext()
 
 	row := &Test{}
 
-	if ok, err := ctx.Model(&row).Find(); !ok || err != nil {
+	if ok, err := ctx.Model(&row).With("Cate").Find(); !ok || err != nil {
 		t.Fatalf("记录不存在")
 	}
-	fmt.Printf("row: %d, %v\n", row.Id, time.Time(*row.CreateTime).Format(time.RFC3339Nano))
+	fmt.Printf("row: %d, %v\n", row.Id, row.Cate)
 }
 
 // 测试数据删除
 func TestDelete(t *testing.T)  {
-	ctx := &Context{}
+	ctx := NewContext()
 	row := &Test{}
 
 	if ok, err := ctx.Model(&row).Find(); !ok || err != nil {

@@ -7,9 +7,19 @@ import (
 
 type Context struct {
 	conn string
+	queryAfter []QueryAfterCallback
 }
 
 type TransactionCall func() error
+
+func NewContext() *Context {
+	ctx := &Context{}
+	ctx.AddQueryAfterCallback(func(params *CallbackParams) error {
+		// m.loadRelationData(maps)
+		return nil
+	})
+	return ctx
+}
 
 // 使用连接名
 func (ctx *Context) Use(conn string) *Context {
@@ -31,6 +41,22 @@ func (ctx *Context) Config() Config {
 		return dbMaps[defaultConn].config
 	}
 	return dbMaps[ctx.conn].config
+}
+
+// 添加查询后事件
+func (ctx *Context) AddQueryAfterCallback(callback QueryAfterCallback) *Context {
+	ctx.queryAfter = append(ctx.queryAfter, callback)
+	return ctx
+}
+
+func (ctx *Context) callQueryAfterCallbacks(params *CallbackParams) (err error) {
+	for _, fun := range ctx.queryAfter {
+		err = fun(params)
+		if err != nil {
+			return
+		}
+	}
+	return
 }
 
 // 事务处理
@@ -63,6 +89,7 @@ func (ctx *Context) Transaction(call TransactionCall) error {
 // 新的模型实例
 func (ctx *Context) Model(mod interface{}) *Model {
 	model := &Model{}
+	model.context = ctx
 	model.config = ctx.Config()
 	model.db = ctx.Db()
 	model.model = mod
