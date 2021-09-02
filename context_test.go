@@ -18,6 +18,7 @@ type Test struct {
 	CreateTime *sqltype.Timestamp `db:"create_time"`
 	Cate *TestCate `pk:"Id" fk:"TestId"`
 	Cate2 TestCate `pk:"Id" fk:"TestId"`
+	Cates []TestCate
 }
 
 type TestCate struct {
@@ -124,7 +125,7 @@ func TestSelect(t *testing.T)  {
 	ctx := NewContext()
 	var rows []Test
 	// Where("Id", "in", []int{1, 2, 3, 4}).
-	if err := ctx.Model(&rows).With("Cate", "Cate2").OrderByDesc("Id").Limit(3).Select(); err != nil {
+	if err := ctx.Model(&rows).OrderByDesc("Id").Limit(3).Select(); err != nil {
 		t.Fatalf("select fail: %v", err)
 	}
 	fmt.Printf("rows id: %d\n", rows[0].Id)
@@ -132,6 +133,8 @@ func TestSelect(t *testing.T)  {
 		fmt.Printf("rows cate: %v\n", rows[0].Cate)
 	}
 	fmt.Printf("rows cate2: %v\n", rows[0].Cate2.Name)
+
+	fmt.Printf("rows cates: %v\n", rows[0].Cates)
 }
 
 // 测试单行查询
