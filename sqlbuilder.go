@@ -186,11 +186,10 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 		}
 	case "mysql":
 		if t.p == "select" {
-			limit := "1"
 			if t.limit != nil {
-				limit = fmt.Sprintf("%d", *t.limit)
+				limit := fmt.Sprintf("%d", *t.limit)
+				str += " LIMIT " + limit
 			}
-			str += " LIMIT " + limit
 
 			if t.offset != nil {
 				str += fmt.Sprintf(" OFFSET %d", *t.offset)
@@ -203,5 +202,6 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 		params[v] = t.bindParams[v]
 	}
 
+	fmt.Printf("sql: %v\n", str)
 	return str, params
 }

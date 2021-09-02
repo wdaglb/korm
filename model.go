@@ -17,6 +17,9 @@ type Model struct {
 	builder *SqlBuilder
 	schema *schema.Schema
 	withList []string
+
+	relationData map[string][]*relation
+	relationMap map[string]*relation
 }
 
 // 转为map
@@ -41,7 +44,15 @@ func (m *Model) toMap(rows *sql.Rows) (map[string]interface{}, error) {
 
 // 关联加载
 func (m *Model) With(list ...string) *Model {
-	m.withList = append(m.withList, list...)
+	temps := make([]string, 0)
+	for _, v := range m.withList {
+		for _, v2 := range list {
+			if v2 != v {
+				temps = append(temps, v2)
+			}
+		}
+	}
+	m.withList = append(m.withList, temps...)
 	return m
 }
 
@@ -139,10 +150,13 @@ func (m *Model) Find() (bool, error) {
 			return false, err
 		}
 	}
-	if err := m.loadRelationData(ret); err != nil {
-		return true, err
-	}
-	return true, nil
+	err = m.context.callQueryAfterCallbacks(&CallbackParams{
+		Action: "find",
+		Model: m,
+		Rows: rows,
+		Map: ret,
+	})
+	return true, err
 }
 
 // 获取数据集
@@ -177,7 +191,12 @@ func (m *Model) Select() error {
 		m.schema.AddArrayItem(ret)
 	}
 
-	return nil
+	return m.context.callQueryAfterCallbacks(&CallbackParams{
+		Action: "select",
+		Model: m,
+		Rows: rows,
+		MapRows: maps,
+	})
 }
 
 // 获取一列数据
@@ -216,7 +235,13 @@ func (m *Model) Value(col string, dst interface{}) (bool, error) {
 		}
 		utils.CallScan(ret[col], value)
 
-		return true, nil
+		err = m.context.callQueryAfterCallbacks(&CallbackParams{
+			Action: "value",
+			Model: m,
+			Rows: rows,
+			Map: ret,
+		})
+		return true, err
 	}
 
 	return false, nil

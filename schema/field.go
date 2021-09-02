@@ -34,6 +34,22 @@ func (field *Field) GetColumnName() string {
 	return col
 }
 
+func (field *Field) GetPrimaryName() string {
+	val := field.Tag.Get("pk")
+	if val == "" {
+		return field.Schema.PrimaryKey
+	}
+	return val
+}
+
+func (field *Field) GetForeignName() string {
+	val := field.Tag.Get("fk")
+	if val == "" {
+		return field.Name + field.Schema.PrimaryKey
+	}
+	return val
+}
+
 func (field *Field) GetPrimaryKey() string {
 	val := field.Tag.Get("pk")
 	if val == "" {

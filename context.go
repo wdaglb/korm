@@ -14,10 +14,7 @@ type TransactionCall func() error
 
 func NewContext() *Context {
 	ctx := &Context{}
-	ctx.AddQueryAfterCallback(func(params *CallbackParams) error {
-		// m.loadRelationData(maps)
-		return nil
-	})
+	RegisterCallback(ctx)
 	return ctx
 }
 
@@ -94,6 +91,9 @@ func (ctx *Context) Model(mod interface{}) *Model {
 	model.db = ctx.Db()
 	model.model = mod
 	model.schema = schema.NewSchema(mod)
+	if len(model.schema.WithList) > 0 {
+		model.withList = append(model.withList, model.schema.WithList...)
+	}
 
 	model.builder = NewSqlBuilder(model, model.schema)
 

@@ -18,6 +18,7 @@ type Schema struct {
 	Fields []*Field
 	FieldNames map[string]*Field
 	Relations map[string]*Relation
+	WithList []string
 }
 
 func NewSchema(data interface{}) *Schema {
@@ -110,12 +111,16 @@ func (schema *Schema) AddField(structField reflect.StructField) *Field {
 
 // 加载关联模型
 func (schema *Schema) loadRelation(field *Field, value reflect.Value) {
-	typ := utils.IndirectType(value.Type())
+	typ := value.Type()
+	indirectTyp := utils.IndirectType(typ)
 	name := field.Name
 	schema.Relations[name] = &Relation{
-		HasType: typ,
+		HasType: indirectTyp,
 		HasModel: value.Interface(),
 		Field: field,
+	}
+	if field.FieldType.Kind() != reflect.Ptr {
+		schema.WithList = append(schema.WithList, name)
 	}
 }
 

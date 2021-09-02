@@ -16,12 +16,14 @@ type Test struct {
 	User string `db:"user"`
 	TestId int `db:"test_id"`
 	CreateTime *sqltype.Timestamp `db:"create_time"`
-	Cate TestCate `db:"cate" pk:"Id" fk:"TestId"`
+	Cate *TestCate `pk:"Id" fk:"TestId"`
+	Cate2 TestCate `pk:"Id" fk:"TestId"`
 }
 
 type TestCate struct {
 	Id int64 `db:"id"`
 	Name string `db:"name"`
+	TestId int `db:"test_id"`
 }
 
 func init()  {
@@ -122,10 +124,14 @@ func TestSelect(t *testing.T)  {
 	ctx := NewContext()
 	var rows []Test
 	// Where("Id", "in", []int{1, 2, 3, 4}).
-	if err := ctx.Model(&rows).With("Cate").OrderByDesc("Id").Limit(3).Select(); err != nil {
+	if err := ctx.Model(&rows).With("Cate", "Cate2").OrderByDesc("Id").Limit(3).Select(); err != nil {
 		t.Fatalf("select fail: %v", err)
 	}
-	fmt.Printf("rows: %d, %v\n", rows[0].Id, rows[0].Cate.Name)
+	fmt.Printf("rows: %d\n", rows[0].Id)
+	if rows[0].Cate != nil {
+		fmt.Printf("rows cate: %v\n", rows[0].Cate.Name)
+	}
+	fmt.Printf("rows cate2: %v\n", rows[0].Cate2.Name)
 }
 
 // 测试单行查询
@@ -137,7 +143,7 @@ func TestFind(t *testing.T)  {
 	if ok, err := ctx.Model(&row).With("Cate").Find(); !ok || err != nil {
 		t.Fatalf("记录不存在")
 	}
-	fmt.Printf("row: %d, %v\n", row.Id, row.Cate)
+	// fmt.Printf("row: %d, %v\n", row.Id, row.Cate)
 }
 
 // 测试数据删除

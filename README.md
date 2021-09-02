@@ -33,7 +33,7 @@ if err != nil {
 数据库的读写操作都依托于Context类
 Context内部会自动维护db连接，不需要你自行管理Context实例，每次使用都建议实例一个新的Context
 ```
-ctx := new(Context)
+ctx := NewContext()
 ```
 
 ## 声明模型结构
