@@ -77,15 +77,16 @@ func (m *Model) fetchRelationDbData() error {
 				relation = data
 				pks = append(pks, data.Value)
 			}
+			if relation == nil {
+				continue
+			}
 
 			sliceOf := reflect.SliceOf(relation.Field.IndirectFieldType)
 			ptr := reflect.New(sliceOf)
 
 			ptr.Elem().Set(reflect.MakeSlice(sliceOf, 0, 0))
 
-			result := ptr.Interface()
-
-			if err := m.context.Model(result).Where(relation.ForeignKey, "in", pks).Select(); err != nil {
+			if err := m.context.Model(ptr.Interface()).Where(relation.ForeignKey, "in", pks).Select(); err != nil {
 				return err
 			}
 
@@ -94,27 +95,10 @@ func (m *Model) fetchRelationDbData() error {
 				id := f.FieldByName(relation.Field.GetForeignName())
 
 				if re := m.relationMap[fmt.Sprintf("%v", id.Interface())]; re != nil {
-					sc := reflect.New(relation.Field.FieldType)
-					fmt.Printf("sss: %v\n", sc.Elem().Kind())
-					if relation.Field.StructField.Type.Kind() == reflect.Struct {
-						//newVal := reflect.New(f.Type())
-						//newVal.Elem().Set(f)
-						//
-						//sc.Set(newVal)
-					} else {
-						newVal := reflect.New(f.Type())
-						newVal.Elem().Set(f)
-						fmt.Printf("type: %v\n", newVal.Elem().Kind())
-						sc.Set(f)
-					}
-					//if relation.Field.FieldType.Kind() != reflect.Ptr {
-					//	newVal := reflect.New(relation.Field.FieldType)
-					//	newVal.Elem().Set(f)
-					//	fmt.Printf("re22: %v, %v\n", f.Kind(), newVal.Kind())
-					//	re.SrcData.Set(newVal)
-					//} else {
-					//	re.SrcData.Set(f)
-					//}
+					row := m.schema.Data.Index(i)
+					fieldValue := row.FieldByName(relation.Field.Name)
+
+					_ = m.schema.SetStructValue(f.Interface(), fieldValue)
 				}
 			}
 		}

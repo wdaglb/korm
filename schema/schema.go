@@ -179,6 +179,7 @@ func (schema *Schema) SetStructValue(src interface{}, dst reflect.Value) (err er
 			if scanner, ok := dvt.(mixins.Scanner); ok {
 				return scanner.Scan(src)
 			}
+			dst.Elem().Set(sv)
 			return nil
 		}
 		return schema.SetStructValue(src, dst)

@@ -127,9 +127,9 @@ func TestSelect(t *testing.T)  {
 	if err := ctx.Model(&rows).With("Cate", "Cate2").OrderByDesc("Id").Limit(3).Select(); err != nil {
 		t.Fatalf("select fail: %v", err)
 	}
-	fmt.Printf("rows: %d\n", rows[0].Id)
+	fmt.Printf("rows id: %d\n", rows[0].Id)
 	if rows[0].Cate != nil {
-		fmt.Printf("rows cate: %v\n", rows[0].Cate.Name)
+		fmt.Printf("rows cate: %v\n", rows[0].Cate)
 	}
 	fmt.Printf("rows cate2: %v\n", rows[0].Cate2.Name)
 }
