@@ -123,6 +123,42 @@ ctx.Transaction(func () error {
 只需要把需要进行的事务，写到闭包函数里即可，支持嵌套事务
 注意：在同一个Context实例里的才会被事务影响
 
+## 一对一关联
+
+在模型定义声明字段
+使用*指针标识，则需要With("模型名")加载关联数据
+
+未使用*指针标识，则默认自动加载关联数据
+
+```
+type Test struct {
+	Id int64 `db:"id"`
+	Cate TestCate `pk:"Id" fk:"TestId"`
+	Cate2 *TestCate `pk:"Id" fk:"TestId"`
+}
+type TestCate struct {
+	Id int64 `db:"id"`
+	Name string `db:"name"`
+	TestId int `db:"test_id"`
+}
+```
+
+## 一对多关联
+
+在模型定义声明一个分片字段
+
+```
+type Test struct {
+	Id int64 `db:"id"`
+	Cates []TestCate `pk:"Id" fk:"TestId"`
+}
+type TestCate struct {
+	Id int64 `db:"id"`
+	Name string `db:"name"`
+	TestId int `db:"test_id"`
+}
+```
+
 ## License
 @ King east, 2021-now
 
