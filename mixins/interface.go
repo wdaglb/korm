@@ -11,3 +11,7 @@ type ModelTable interface {
 type ModelPk interface {
 	Pk() string
 }
+
+type ModelConn interface {
+	Conn() string
+}

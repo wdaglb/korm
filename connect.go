@@ -37,6 +37,9 @@ func Connect(config Config) *connect {
 
 // 添加数据库连接
 func (c *connect) AddDb(config DbConfig) error {
+	if config.Conn == "" {
+		config.Conn = config.Database
+	}
 	v, err := NewDb(c.config, config)
 	if err != nil {
 		return err

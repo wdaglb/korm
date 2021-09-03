@@ -164,7 +164,14 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 	case "delete":
 		str = "DELETE FROM [table]"
 	}
-	str = strings.ReplaceAll(str, "[table]", t.schema.TableName)
+	var table string
+	switch t.model.config.Driver {
+	case "mssql":
+		table = fmt.Sprintf("[%s]", t.schema.TableName)
+	case "mysql":
+		table = fmt.Sprintf("`%s`", t.schema.TableName)
+	}
+	str = strings.ReplaceAll(str, "[table]", table)
 
 	switch t.p {
 	case "select", "update", "delete":

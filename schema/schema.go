@@ -30,7 +30,9 @@ func NewSchema(data interface{}) *Schema {
 	schema.TableName = utils.Camel2Case(schema.Type.Name())
 	schema.Data = utils.Indirect(reflect.ValueOf(data))
 
-	if ext, ok := schema.Data.Interface().(mixins.ModelTable); ok {
+	yumData := reflect.New(schema.Type)
+
+	if ext, ok := yumData.Interface().(mixins.ModelTable); ok {
 		schema.TableName = ext.Table()
 	}
 	schema.PrimaryKey = "Id"

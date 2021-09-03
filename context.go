@@ -19,10 +19,17 @@ func NewContext() *Context {
 	return ctx
 }
 
+func UseContext(conn string) *Context {
+	newCtx := NewContext()
+	newCtx.conn = conn
+	return newCtx
+}
+
 // 使用连接名
 func (ctx *Context) Use(conn string) *Context {
-	ctx.conn = conn
-	return ctx
+	newCtx := NewContext()
+	newCtx.conn = conn
+	return newCtx
 }
 
 // 取得当前连接sql.DB实例

@@ -30,10 +30,8 @@ func NewDb(config Config, dbConf DbConfig) (*kdb, error) {
 	}
 
 	kdb := &kdb{}
-	if err != nil {
-		return nil, err
-	}
 	kdb.db = db
+	kdb.config = dbConf
 	kdb.currentKey = newQueue()
 	kdb.tx = make(map[int]*sql.Tx)
 	return kdb, nil
