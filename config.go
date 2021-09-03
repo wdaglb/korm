@@ -1,6 +1,12 @@
 package korm
 
 type Config struct {
+	DefaultConn string
+	MaxOpenConns int
+	MaxIdleConns int
+}
+
+type DbConfig struct {
 	Conn string // 连接名, 保持单个应用唯一即可
 	Driver string
 	Host string
@@ -8,6 +14,4 @@ type Config struct {
 	Pass string
 	Port int
 	Database string
-	MaxOpenConns int
-	MaxIdleConns int
 }

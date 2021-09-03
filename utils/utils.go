@@ -304,3 +304,23 @@ func MapToStruct(data map[string]interface{}, dst interface{})  {
 		//}
 	}
 }
+
+// 字符串是否在数组内
+func InStrArray(dst []string, vt string) bool {
+	for _, v := range dst {
+		if vt == v {
+			return true
+		}
+	}
+	return false
+}
+
+// 整数是否在数组内
+func InIntArray(dst []int, vt int) bool {
+	for _, v := range dst {
+		if vt == v {
+			return true
+		}
+	}
+	return false
+}

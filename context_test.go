@@ -15,9 +15,9 @@ type Test struct {
 	Id int64 `db:"id"`
 	User string `db:"user"`
 	TestId int `db:"test_id"`
-	CreateTime *sqltype.Timestamp `db:"create_time"`
+	CreateTime sqltype.Timestamp `db:"create_time"`
+	UpdateTime sqltype.DateTime `db:"update_time"`
 	Cate *TestCate `pk:"Id" fk:"TestId"`
-	Cate2 TestCate `pk:"Id" fk:"TestId"`
 	Cates []TestCate `pk:"Id" fk:"TestId"`
 }
 
@@ -30,7 +30,10 @@ type TestCate struct {
 func init()  {
 	_ = godotenv.Load(".env")
 	val, _ := strconv.Atoi(os.Getenv("DB_PORT"))
-	err := Connect(Config{
+
+	conn := Connect(Config{MaxOpenConns: 100, MaxIdleConns: 10})
+	err := conn.AddDb(DbConfig{
+		Conn: "default",
 		Driver: os.Getenv("DB_DRIVER"),
 		Host:   os.Getenv("DB_HOST"),
 		Port:   val,
@@ -114,6 +117,7 @@ func TestUpdate(t *testing.T)  {
 		t.Fatalf("getdata fail: %v\n", err)
 	}
 	row.User = "testUpdate"
+	// row.Cate.Name = "2xx3"
 	if err := ctx.Model(&row).Update(); err != nil {
 		t.Fatalf("update fail: %v\n", err)
 	}
@@ -132,7 +136,7 @@ func TestSelect(t *testing.T)  {
 	if rows[0].Cate != nil {
 		fmt.Printf("rows cate: %v\n", rows[0].Cate)
 	}
-	fmt.Printf("rows cate2: %v\n", rows[0].Cate2.Name)
+	// fmt.Printf("rows cate2: %v\n", rows[0].Cate2.Name)
 
 	fmt.Printf("rows cates: %v\n", rows[0].Cates)
 }
@@ -143,10 +147,12 @@ func TestFind(t *testing.T)  {
 
 	row := &Test{}
 
-	if ok, err := ctx.Model(&row).With("Cate").Find(); !ok || err != nil {
+	if ok, err := ctx.Model(&row).With("Cate", "Cates").Find(); !ok || err != nil {
 		t.Fatalf("记录不存在")
 	}
-	// fmt.Printf("row: %d, %v\n", row.Id, row.Cate)
+	fmt.Printf("row cate: %d, %v\n", row.Id, row.Cate)
+
+	fmt.Printf("row cates: %d, %v\n", row.Id, row.Cates)
 }
 
 // 测试数据删除
@@ -157,6 +163,7 @@ func TestDelete(t *testing.T)  {
 	if ok, err := ctx.Model(&row).Find(); !ok || err != nil {
 		t.Fatalf("getdata fail: %v\n", err)
 	}
+	fmt.Printf("cates; %v, %v\n", row.Id, row.Cates)
 	if err := ctx.Model(&row).Delete(); err != nil {
 		t.Fatalf("delete fail: %v\n", err)
 	}

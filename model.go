@@ -11,7 +11,7 @@ import (
 
 type Model struct {
 	db *kdb
-	config Config
+	config DbConfig
 	model interface{}
 	context *Context
 	builder *SqlBuilder
@@ -20,6 +20,7 @@ type Model struct {
 
 	relationData map[string][]*relation
 	relationMap map[string]*relation
+	cancelTogethers []string // 取消关联数据同步操作
 }
 
 // 转为map
@@ -45,14 +46,24 @@ func (m *Model) toMap(rows *sql.Rows) (map[string]interface{}, error) {
 // 关联加载
 func (m *Model) With(list ...string) *Model {
 	temps := make([]string, 0)
-	for _, v := range m.withList {
-		for _, v2 := range list {
-			if v2 != v {
-				temps = append(temps, v2)
+	if len(m.withList) > 0 {
+		for _, v := range m.withList {
+			for _, v2 := range list {
+				if v2 != v {
+					temps = append(temps, v2)
+				}
 			}
 		}
+	} else {
+		temps = list
 	}
 	m.withList = append(m.withList, temps...)
+	return m
+}
+
+// 取消关联数据同步操作
+func (m *Model) CancelTogether(list ...string) *Model {
+	m.cancelTogethers = append(m.cancelTogethers, list...)
 	return m
 }
 
@@ -150,7 +161,7 @@ func (m *Model) Find() (bool, error) {
 			return false, err
 		}
 	}
-	err = m.context.callQueryAfterCallbacks(&CallbackParams{
+	err = m.context.emitEvent("query_after", &CallbackParams{
 		Action: "find",
 		Model: m,
 		Rows: rows,
@@ -191,7 +202,7 @@ func (m *Model) Select() error {
 		m.schema.AddArrayItem(ret)
 	}
 
-	return m.context.callQueryAfterCallbacks(&CallbackParams{
+	return m.context.emitEvent("query_after", &CallbackParams{
 		Action: "select",
 		Model: m,
 		Rows: rows,
@@ -235,7 +246,7 @@ func (m *Model) Value(col string, dst interface{}) (bool, error) {
 		}
 		utils.CallScan(ret[col], value)
 
-		err = m.context.callQueryAfterCallbacks(&CallbackParams{
+		err = m.context.emitEvent("query_after", &CallbackParams{
 			Action: "value",
 			Model: m,
 			Rows: rows,
@@ -354,9 +365,15 @@ func (m *Model) Create() error {
 		}
 	}
 
-	_ = m.schema.SetFieldValue(m.schema.PrimaryKey, lastId)
-
-	return nil
+	err = m.schema.SetFieldValue(m.schema.PrimaryKey, lastId)
+	if err != nil {
+		return err
+	}
+	err = m.context.emitEvent("insert_after", &CallbackParams{
+		Action: "insert",
+		Model: m,
+	})
+	return err
 }
 
 // 修改
@@ -386,8 +403,12 @@ func (m *Model) Update() error {
 	if err != nil {
 		return fmt.Errorf("update fail: %v", err)
 	}
+	err = m.context.emitEvent("update_after", &CallbackParams{
+		Action: "update",
+		Model: m,
+	})
 
-	return nil
+	return err
 }
 
 // 删除
@@ -417,7 +438,11 @@ func (m *Model) Delete() error {
 	if err != nil {
 		return fmt.Errorf("delete fail: %v", err)
 	}
+	err = m.context.emitEvent("delete_after", &CallbackParams{
+		Action: "delete",
+		Model: m,
+	})
 
-	return nil
+	return err
 }
 

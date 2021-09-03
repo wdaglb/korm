@@ -131,7 +131,7 @@ func (schema *Schema) loadRelation(types string, field *Field, value reflect.Val
 		HasModel: value.Interface(),
 		Field: field,
 	}
-	if field.FieldType.Kind() != reflect.Ptr {
+	if field.FieldType.Kind() != reflect.Ptr && field.FieldType.Kind() != reflect.Array && field.FieldType.Kind() != reflect.Slice {
 		schema.WithList = append(schema.WithList, name)
 	}
 }

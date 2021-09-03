@@ -7,13 +7,14 @@ import (
 
 type Context struct {
 	conn string
-	queryAfter []QueryAfterCallback
+	events map[string][]EventCallback
 }
 
 type TransactionCall func() error
 
 func NewContext() *Context {
 	ctx := &Context{}
+	ctx.events = make(map[string][]EventCallback)
 	RegisterCallback(ctx)
 	return ctx
 }
@@ -27,27 +28,50 @@ func (ctx *Context) Use(conn string) *Context {
 // 取得当前连接sql.DB实例
 func (ctx *Context) Db() *kdb {
 	if ctx.conn == "" {
-		return dbMaps[defaultConn].db
+		return mainConnect.dbList[mainConnect.config.DefaultConn]
 	}
-	return dbMaps[ctx.conn].db
+	return mainConnect.dbList[ctx.conn]
 }
 
 // 取得当前模型使用的配置
-func (ctx *Context) Config() Config {
+func (ctx *Context) Config() DbConfig {
 	if ctx.conn == "" {
-		return dbMaps[defaultConn].config
+		return mainConnect.dbList[mainConnect.config.DefaultConn].config
 	}
-	return dbMaps[ctx.conn].config
+	return mainConnect.dbList[ctx.conn].config
 }
 
-// 添加查询后事件
-func (ctx *Context) AddQueryAfterCallback(callback QueryAfterCallback) *Context {
-	ctx.queryAfter = append(ctx.queryAfter, callback)
+// 监听查询后事件
+func (ctx *Context) OnEventQueryAfter(callback EventCallback) *Context {
+	event := "query_after"
+	ctx.events[event] = append(ctx.events[event], callback)
 	return ctx
 }
 
-func (ctx *Context) callQueryAfterCallbacks(params *CallbackParams) (err error) {
-	for _, fun := range ctx.queryAfter {
+// 监听插入后事件
+func (ctx *Context) OnInsertAfterCallback(callback EventCallback) *Context {
+	event := "insert_after"
+	ctx.events[event] = append(ctx.events[event], callback)
+	return ctx
+}
+
+// 监听更新后事件
+func (ctx *Context) OnUpdateAfterCallback(callback EventCallback) *Context {
+	event := "update_after"
+	ctx.events[event] = append(ctx.events[event], callback)
+	return ctx
+}
+
+// 监听删除后事件
+func (ctx *Context) OnDeleteAfterCallback(callback EventCallback) *Context {
+	event := "delete_after"
+	ctx.events[event] = append(ctx.events[event], callback)
+	return ctx
+}
+
+// 调用指定事件
+func (ctx *Context) emitEvent(event string, params *CallbackParams) (err error) {
+	for _, fun := range ctx.events[event] {
 		err = fun(params)
 		if err != nil {
 			return

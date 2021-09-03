@@ -3,6 +3,7 @@ package korm
 import (
 	"fmt"
 	"github.com/wdaglb/korm/schema"
+	"github.com/wdaglb/korm/utils"
 	"reflect"
 )
 
@@ -96,7 +97,13 @@ func (m *Model) fetchRelationDbData() error {
 				id := f.FieldByName(relation.Field.GetForeignName())
 
 				if re := m.relationMap[fmt.Sprintf("%v", id.Interface())]; re != nil {
-					row := m.schema.Data.Index(i)
+					var row reflect.Value
+					typ := m.schema.Data.Type()
+					if typ.Kind() == reflect.Slice || typ.Kind() == reflect.Array {
+						row = m.schema.Data.Index(i)
+					} else {
+						row = m.schema.Data
+					}
 					fieldValue := row.FieldByName(relation.Field.Name)
 
 					if err := m.schema.SetStructValue(f.Interface(), fieldValue); err != nil {
@@ -107,5 +114,119 @@ func (m *Model) fetchRelationDbData() error {
 		}
 	}
 
+	return nil
+}
+
+// 插入关联数据
+func (m *Model) insertRelationData() error {
+	for k, v := range m.schema.FieldNames {
+		if v.DataType != "" {
+			continue
+		}
+		f := m.schema.Data.FieldByName(k)
+		relation := m.schema.Relations[k]
+		if relation == nil {
+			continue
+		}
+		if utils.InStrArray(m.cancelTogethers, v.Name) {
+			continue
+		}
+		if v.FieldType.Kind() == reflect.Slice || v.FieldType.Kind() == reflect.Array {
+			for i := 0; i < f.Len(); i++ {
+				row := f.Index(i)
+				if row.Kind() == reflect.Ptr {
+					row = row.Elem()
+				}
+				if err := m.context.Model(row.Interface()).Create(); err != nil {
+					return err
+				}
+			}
+			continue
+		} else if v.FieldType.Kind() == reflect.Ptr && f.IsNil() {
+			continue
+		}
+		if f.Kind() == reflect.Ptr {
+			f = f.Elem()
+		}
+		if err := m.context.Model(f.Interface()).Create(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// 更新关联数据
+func (m *Model) updateRelationData() error {
+	for k, v := range m.schema.FieldNames {
+		if v.DataType != "" {
+			continue
+		}
+		f := m.schema.Data.FieldByName(k)
+		relation := m.schema.Relations[k]
+		if relation == nil {
+			continue
+		}
+		if utils.InStrArray(m.cancelTogethers, v.Name) {
+			continue
+		}
+		if v.FieldType.Kind() == reflect.Slice || v.FieldType.Kind() == reflect.Array {
+			for i := 0; i < f.Len(); i++ {
+				row := f.Index(i)
+				if row.Kind() == reflect.Ptr {
+					row = row.Elem()
+				}
+				if err := m.context.Model(row.Interface()).Update(); err != nil {
+					return err
+				}
+			}
+			continue
+		} else if v.FieldType.Kind() == reflect.Ptr && f.IsNil() {
+			continue
+		}
+		if f.Kind() == reflect.Ptr {
+			f = f.Elem()
+		}
+		if err := m.context.Model(f.Interface()).Update(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// 删除关联数据
+func (m *Model) deleteRelationData() error {
+	for k, v := range m.schema.FieldNames {
+		if v.DataType != "" {
+			continue
+		}
+		f := m.schema.Data.FieldByName(k)
+		relation := m.schema.Relations[k]
+		if relation == nil {
+			continue
+		}
+		if utils.InStrArray(m.cancelTogethers, v.Name) {
+			continue
+		}
+		if v.FieldType.Kind() == reflect.Slice || v.FieldType.Kind() == reflect.Array {
+			for i := 0; i < f.Len(); i++ {
+				row := f.Index(i)
+				if row.Kind() == reflect.Ptr {
+					row = row.Elem()
+				}
+				if err := m.context.Model(row.Interface()).Delete(); err != nil {
+					return err
+				}
+			}
+			continue
+		} else if v.FieldType.Kind() == reflect.Ptr && f.IsNil() {
+			continue
+		}
+		if f.Kind() == reflect.Ptr {
+			f = f.Elem()
+		}
+		if err := m.context.Model(f.Interface()).Delete(); err != nil {
+			return err
+		}
+	}
 	return nil
 }

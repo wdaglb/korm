@@ -137,6 +137,10 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 			if k == t.schema.PrimaryKey {
 				continue
 			}
+			if t.schema.FieldNames[k].DataType == "" {
+				fmt.Printf("忽略: %v\n", k)
+				continue
+			}
 			t.bindParam(v)
 			keys = append(keys, t.parseField(k))
 			values = append(values, "?")
@@ -148,6 +152,9 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 		values := make([]string, 0)
 		for k, v := range t.data {
 			if k == t.schema.PrimaryKey {
+				continue
+			}
+			if t.schema.FieldNames[k].DataType == "" {
 				continue
 			}
 			t.bindParam(v)

@@ -8,17 +8,35 @@ import (
 
 type kdb struct {
 	db *sql.DB
+	config DbConfig
 	currentKey *Queue
 	txCount int
 	tx map[int]*sql.Tx
 }
 
-func NewDb(db *sql.DB) *kdb {
-	d := &kdb{}
-	d.db = db
-	d.tx = make(map[int]*sql.Tx)
-	d.currentKey = newQueue()
-	return d
+func NewDb(config Config, dbConf DbConfig) (*kdb, error) {
+	var (
+		db *sql.DB
+	)
+	dsn := configToDsn(dbConf)
+	if dsn == "" {
+		return nil, fmt.Errorf("unsupported driver: %s", dbConf.Driver)
+	}
+
+	fmt.Printf("conn: %s\n", dsn)
+	db, err := sql.Open(dbConf.Driver, dsn)
+	if err != nil {
+		return nil, err
+	}
+
+	kdb := &kdb{}
+	if err != nil {
+		return nil, err
+	}
+	kdb.db = db
+	kdb.currentKey = newQueue()
+	kdb.tx = make(map[int]*sql.Tx)
+	return kdb, nil
 }
 
 // 申请空闲事务标识

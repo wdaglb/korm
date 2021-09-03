@@ -16,7 +16,9 @@ go get github.com/go-sql-driver/mysql
 ## 连接mysql数据库
 
 ```
-err := Connect(Config{
+conn := Connect(Config{MaxOpenConns: 100, MaxIdleConns: 10})
+err := conn.AddDb(DbConfig{
+    Conn: "default",
     Driver: "mysql",
     Host:   "127.0.0.1",
     Port:   3306,
@@ -25,7 +27,7 @@ err := Connect(Config{
     Database: "test",
 })
 if err != nil {
-    t.Fatal(err)
+    log.Fatalf("connect fail: %v", err)
 }
 ```
 
@@ -72,6 +74,7 @@ SELECT * FROM test
 ```
 
 ## 创建数据
+模型插入会把已经赋值的数据插入的关联表
 ```
 insertData := &Test{
   User: "test",
@@ -87,6 +90,7 @@ INSERT INTO test (`user`) VALUES ('test')
 ```
 
 ## 更新数据
+模型更新会把关联已经加载的数据一并更新，未关联的不会更新
 ```
 updateData := &Test{
   Id: 1,
@@ -103,6 +107,7 @@ UPDATE test SET `user`='test' WHERE `id`=1
 ```
 
 ## 删除数据
+模型删除会把关联已经加载的数据一并删除，未关联的不会删除
 ```
 if err := ctx.Model(&Test{Id: 1}).Delete(); err != nil {
     fmt.Println("删除错误")
@@ -157,6 +162,12 @@ type TestCate struct {
 	Name string `db:"name"`
 	TestId int `db:"test_id"`
 }
+```
+
+## 取消关联数据操作同步
+Cates关联的数据不会被删除
+```
+ctx.Model(&deleteData).CancelTogether("Cates").Delete()
 ```
 
 ## License
