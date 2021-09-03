@@ -24,6 +24,7 @@ type Field struct {
 	TagSetting map[string]string
 	FieldType reflect.Type
 	IndirectFieldType reflect.Type
+	DeepType reflect.Type
 }
 
 func (field *Field) GetColumnName() string {

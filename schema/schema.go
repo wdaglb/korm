@@ -54,6 +54,14 @@ func (schema *Schema) IsArray() bool {
 	return typ.Kind() == reflect.Slice || typ.Kind() == reflect.Array
 }
 
+func (schema *Schema) Indirect(typ reflect.Type) reflect.Type {
+	if typ.Kind() == reflect.Ptr || typ.Kind() == reflect.Slice || typ.Kind() == reflect.Array {
+		typ = typ.Elem()
+		return schema.Indirect(typ)
+	}
+	return typ
+}
+
 // 添加字段
 func (schema *Schema) AddField(structField reflect.StructField) *Field {
 	field := &Field{
@@ -63,6 +71,7 @@ func (schema *Schema) AddField(structField reflect.StructField) *Field {
 		StructField: structField,
 		FieldType: structField.Type,
 		IndirectFieldType: utils.IndirectType(structField.Type),
+		DeepType: schema.Indirect(structField.Type),
 	}
 
 	tagDb := structField.Tag.Get("db")
@@ -97,24 +106,27 @@ func (schema *Schema) AddField(structField reflect.StructField) *Field {
 			if _, ok := dvt.(mixins.Scanner); ok {
 				fmt.Printf("获取器")
 			} else {
-				schema.loadRelation(field, fieldValue)
+				schema.loadRelation("one", field, fieldValue)
 			}
 		}
 	case reflect.Array, reflect.Slice:
-		if reflect.Indirect(fieldValue).Type().Elem() == reflect.TypeOf(uint8(0)) {
-			field.DataType = Bytes
-		}
+		schema.loadRelation("many", field, fieldValue)
+		//if reflect.Indirect(fieldValue).Type().Elem() == reflect.TypeOf(uint8(0)) {
+		//	field.DataType = Bytes
+		//} else {
+		//}
 	}
 
 	return field
 }
 
 // 加载关联模型
-func (schema *Schema) loadRelation(field *Field, value reflect.Value) {
+func (schema *Schema) loadRelation(types string, field *Field, value reflect.Value) {
 	typ := value.Type()
 	indirectTyp := utils.IndirectType(typ)
 	name := field.Name
 	schema.Relations[name] = &Relation{
+		Type: types,
 		HasType: indirectTyp,
 		HasModel: value.Interface(),
 		Field: field,
@@ -183,6 +195,14 @@ func (schema *Schema) SetStructValue(src interface{}, dst reflect.Value) (err er
 			return nil
 		}
 		return schema.SetStructValue(src, dst)
+	case reflect.Slice, reflect.Array:
+		rv := reflect.New(dst.Type().Elem())
+		if rv.Kind() == reflect.Ptr {
+			rv = rv.Elem()
+		}
+		rv.Set(sv)
+		newSlice := reflect.Append(dst, rv)
+		dst.Set(newSlice)
 	case reflect.Struct:
 		if dst.IsValid() {
 			var (

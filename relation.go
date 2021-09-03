@@ -7,6 +7,7 @@ import (
 )
 
 type relation struct {
+	Type string
 	PrimaryKey string
 	ForeignKey string
 	Value interface{}
@@ -50,6 +51,7 @@ func (m *Model) loadRelationDataItem(index int, item map[string]interface{}) err
 				m.relationData[field.Name] = make([]*relation, 0)
 			}
 			r := &relation{
+				Type: mod.Type,
 				PrimaryKey: pk,
 				ForeignKey: fk,
 				Field: field,
@@ -66,7 +68,6 @@ func (m *Model) loadRelationDataItem(index int, item map[string]interface{}) err
 // 获取数据库数据
 func (m *Model) fetchRelationDbData() error {
 	// 读取数据库
-	fmt.Printf("relation count: %v\n", len(m.relationData))
 	if len(m.relationData) > 0 {
 		for _, v := range m.relationData {
 			pks := make([]interface{}, 0)
@@ -81,7 +82,7 @@ func (m *Model) fetchRelationDbData() error {
 				continue
 			}
 
-			sliceOf := reflect.SliceOf(relation.Field.IndirectFieldType)
+			sliceOf := reflect.SliceOf(relation.Field.DeepType)
 			ptr := reflect.New(sliceOf)
 
 			ptr.Elem().Set(reflect.MakeSlice(sliceOf, 0, 0))
@@ -98,7 +99,9 @@ func (m *Model) fetchRelationDbData() error {
 					row := m.schema.Data.Index(i)
 					fieldValue := row.FieldByName(relation.Field.Name)
 
-					_ = m.schema.SetStructValue(f.Interface(), fieldValue)
+					if err := m.schema.SetStructValue(f.Interface(), fieldValue); err != nil {
+						return err
+					}
 				}
 			}
 		}

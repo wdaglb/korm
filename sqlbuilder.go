@@ -202,6 +202,6 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 		params[v] = t.bindParams[v]
 	}
 
-	fmt.Printf("sql: %v\n", str)
+	// fmt.Printf("sql: %v\n", str)
 	return str, params
 }

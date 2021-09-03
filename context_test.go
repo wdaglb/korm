@@ -18,7 +18,7 @@ type Test struct {
 	CreateTime *sqltype.Timestamp `db:"create_time"`
 	Cate *TestCate `pk:"Id" fk:"TestId"`
 	Cate2 TestCate `pk:"Id" fk:"TestId"`
-	Cates []TestCate
+	Cates []TestCate `pk:"Id" fk:"TestId"`
 }
 
 type TestCate struct {
@@ -125,7 +125,7 @@ func TestSelect(t *testing.T)  {
 	ctx := NewContext()
 	var rows []Test
 	// Where("Id", "in", []int{1, 2, 3, 4}).
-	if err := ctx.Model(&rows).OrderByDesc("Id").Limit(3).Select(); err != nil {
+	if err := ctx.Model(&rows).With("Cates").OrderByDesc("Id").Limit(3).Select(); err != nil {
 		t.Fatalf("select fail: %v", err)
 	}
 	fmt.Printf("rows id: %d\n", rows[0].Id)
