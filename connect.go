@@ -49,8 +49,8 @@ func (c *connect) AddDb(config DbConfig) error {
 }
 
 // 关闭所有连接
-func Close() {
-	//for _, db := range dbli {
-	//	_ = db.db.db.Close()
-	//}
+func (c *connect) Close() {
+	for _, db := range c.dbList {
+		_ = db.db.Close()
+	}
 }
