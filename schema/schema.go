@@ -31,7 +31,6 @@ func NewSchema(data interface{}) *Schema {
 	schema.Data = utils.Indirect(reflect.ValueOf(data))
 
 	yumData := reflect.New(schema.Type)
-
 	if ext, ok := yumData.Interface().(mixins.ModelTable); ok {
 		schema.TableName = ext.Table()
 	}

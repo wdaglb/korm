@@ -48,7 +48,7 @@ func (t *SqlBuilder) bindParam(value interface{}) {
 func (t *SqlBuilder) AddField(str string) *SqlBuilder {
 	fields := strings.Split(str, ",")
 	for _, f := range fields {
-		t.fields = append(t.fields, t.parseField(f))
+		t.fields = append(t.fields, f)
 	}
 	return t
 }
