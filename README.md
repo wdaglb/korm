@@ -16,7 +16,11 @@ go get github.com/go-sql-driver/mysql
 ## 连接mysql数据库
 
 ```
-conn := Connect(Config{MaxOpenConns: 100, MaxIdleConns: 10})
+conn := Connect(Config{
+    DefaultConn: "default",
+    MaxOpenConns: 100,
+    MaxIdleConns: 10,
+})
 err := conn.AddDb(DbConfig{
     Conn: "default",
     Driver: "mysql",
@@ -35,7 +39,11 @@ if err != nil {
 数据库的读写操作都依托于Context类
 Context内部会自动维护db连接，不需要你自行管理Context实例，每次使用都建议实例一个新的Context
 ```
+// 使用默认数据库
 ctx := NewContext()
+
+// 使用指定数据库
+ctx := UseContext("test")
 ```
 
 ## 声明模型结构
