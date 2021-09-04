@@ -4,6 +4,7 @@ type Config struct {
 	DefaultConn string
 	MaxOpenConns int
 	MaxIdleConns int
+	PrintSql bool
 }
 
 type DbConfig struct {

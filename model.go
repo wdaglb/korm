@@ -11,7 +11,6 @@ import (
 
 type Model struct {
 	db *kdb
-	config DbConfig
 	model interface{}
 	context *Context
 	builder *SqlBuilder
@@ -74,6 +73,13 @@ func (m *Model) Field(str string) *Model {
 
 func (m *Model) FieldRaw(str string) *Model {
 	m.builder.AddFieldRaw(str)
+	return m
+}
+
+func (m *Model) IgnoreField(str ...string) *Model {
+	for _, v := range str {
+		m.builder.IgnoreField(v)
+	}
 	return m
 }
 
@@ -275,7 +281,7 @@ func (m *Model) Count() (int64, error) {
 
 // 求和
 func (m *Model) Sum(col string, dst interface{}) error {
-	p := utils.ParseField(m.config.Driver, m.schema.Type, col)
+	p := utils.ParseField(m.db.dbConf.Driver, m.schema.Type, col)
 	m.builder.fields = []string{fmt.Sprintf("SUM(%s) AS __SUM__", p)}
 	_, err := m.Value("__SUM__", dst)
 	return err
@@ -283,7 +289,7 @@ func (m *Model) Sum(col string, dst interface{}) error {
 
 // 最大值
 func (m *Model) Max(col string, dst interface{}) error {
-	p := utils.ParseField(m.config.Driver, m.schema.Type, col)
+	p := utils.ParseField(m.db.dbConf.Driver, m.schema.Type, col)
 	m.builder.fields = []string{fmt.Sprintf("MAX(%s) AS __VALUE__", p)}
 	_, err := m.Value("__VALUE__", dst)
 	return err
@@ -291,7 +297,7 @@ func (m *Model) Max(col string, dst interface{}) error {
 
 // 最小值
 func (m *Model) Min(col string, dst interface{}) error {
-	p := utils.ParseField(m.config.Driver, m.schema.Type, col)
+	p := utils.ParseField(m.db.dbConf.Driver, m.schema.Type, col)
 	m.builder.fields = []string{fmt.Sprintf("MIN(%s) AS __VALUE__", p)}
 	_, err := m.Value("__VALUE__", dst)
 	return err
@@ -299,7 +305,7 @@ func (m *Model) Min(col string, dst interface{}) error {
 
 // 平均值
 func (m *Model) Avg(col string, dst *float64) error {
-	p := utils.ParseField(m.config.Driver, m.schema.Type, col)
+	p := utils.ParseField(m.db.dbConf.Driver, m.schema.Type, col)
 	m.builder.fields = []string{fmt.Sprintf("AVG(%s) AS __VALUE__", p)}
 	_, err := m.Value("__VALUE__", dst)
 	return err
@@ -344,7 +350,7 @@ func (m *Model) Create() error {
 
 	var lastId int64
 
-	if m.config.Driver == "mssql" {
+	if m.db.dbConf.Driver == "mssql" {
 		result, err := stmt.Query(bindParams...)
 		if err != nil {
 			return fmt.Errorf("insert exec fail: %v", err)

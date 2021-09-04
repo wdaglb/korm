@@ -5,16 +5,16 @@ import (
 )
 
 var (
-	mainConnect *connect
+	mainConnect *Connect
 )
 
-type connect struct {
+type Connect struct {
 	config Config
 	dbList map[string]*kdb
 }
 
 // 讲dbConfig转为dsn字符
-func configToDsn(config DbConfig) string {
+func configToDsn(config *DbConfig) string {
 	switch config.Driver {
 	case "mysql":
 		return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", config.User, config.Pass, config.Host, config.Port, config.Database)
@@ -25,8 +25,8 @@ func configToDsn(config DbConfig) string {
 }
 
 // 连接数据库
-func Connect(config Config) *connect {
-	mainConnect = &connect{}
+func NewConnect(config Config) *Connect {
+	mainConnect = &Connect{}
 	mainConnect.config = config
 	if mainConnect.config.DefaultConn == "" {
 		mainConnect.config.DefaultConn = "default"
@@ -36,11 +36,11 @@ func Connect(config Config) *connect {
 }
 
 // 添加数据库连接
-func (c *connect) AddDb(config DbConfig) error {
+func (c *Connect) AddDb(config DbConfig) error {
 	if config.Conn == "" {
 		config.Conn = config.Database
 	}
-	v, err := NewDb(c.config, config)
+	v, err := NewDb(&c.config, &config)
 	if err != nil {
 		return err
 	}
@@ -49,7 +49,7 @@ func (c *connect) AddDb(config DbConfig) error {
 }
 
 // 关闭所有连接
-func (c *connect) Close() {
+func (c *Connect) Close() {
 	for _, db := range c.dbList {
 		_ = db.db.Close()
 	}

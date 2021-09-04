@@ -14,6 +14,7 @@ type SqlBuilder struct {
 	schema *schema.Schema
 	data map[string]interface{}
 	fields []string
+	ignoreFields []string
 	orders []string
 	where *Where
 	group []string
@@ -37,7 +38,7 @@ func NewSqlBuilder(model *Model, schema *schema.Schema) *SqlBuilder {
 }
 
 func (t *SqlBuilder) parseField(field string) string {
-	return utils.ParseField(t.model.config.Driver, t.schema.Type, field)
+	return utils.ParseField(t.model.db.dbConf.Driver, t.schema.Type, field)
 }
 
 func (t *SqlBuilder) bindParam(value interface{}) {
@@ -56,6 +57,15 @@ func (t *SqlBuilder) AddFieldRaw(str string) *SqlBuilder {
 	fields := strings.Split(str, ",")
 	for _, f := range fields {
 		t.fields = append(t.fields, f)
+	}
+	return t
+}
+
+// 忽略字段
+func (t *SqlBuilder) IgnoreField(str string) *SqlBuilder {
+	fields := strings.Split(str, ",")
+	for _, f := range fields {
+		t.ignoreFields = append(t.ignoreFields, f)
 	}
 	return t
 }
@@ -121,14 +131,32 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 	switch t.p {
 	case "select":
 		str = "SELECT [field] FROM [table]"
-		if len(t.fields) == 0 {
-			str = strings.ReplaceAll(str, "[field]", "*")
+		var (
+			fs []string
+			fsv []string
+		)
+		if len(t.fields) > 0 {
+			fs = t.fields
 		} else {
-			str = strings.ReplaceAll(str, "[field]", strings.Join(t.fields, ","))
+			for _, f := range t.schema.Fields {
+				if f.DataType == "" {
+					continue
+				}
+				fs = append(fs, f.Name)
+			}
 		}
+
+		for _, v := range fs {
+			if utils.InStrArray(t.ignoreFields, v) {
+				continue
+			}
+			fsv = append(fsv, t.parseField(v))
+		}
+
+		str = strings.ReplaceAll(str, "[field]", strings.Join(fsv, ","))
 	case "insert":
 		str = "INSERT INTO [table] ([columns]) VALUES ([values])"
-		if t.model.config.Driver == "mssql" {
+		if t.model.db.dbConf.Driver == "mssql" {
 			str += ";select ID = convert(bigint, SCOPE_IDENTITY())"
 		}
 		keys := make([]string, 0)
@@ -165,7 +193,7 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 		str = "DELETE FROM [table]"
 	}
 	var table string
-	switch t.model.config.Driver {
+	switch t.model.db.dbConf.Driver {
 	case "mssql":
 		table = fmt.Sprintf("[%s]", t.schema.TableName)
 	case "mysql":
@@ -189,11 +217,11 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 		str += fmt.Sprintf(" HAVING %s", t.having.ToString())
 	}
 
-	switch t.model.config.Driver {
+	switch t.model.db.dbConf.Driver {
 	case "mssql":
 		if t.offset != nil {
 			str += fmt.Sprintf(" OFFSET %d", *t.offset)
-			switch t.model.config.Driver {
+			switch t.model.db.dbConf.Driver {
 			case "mssql":
 				str += " ROWS FETCH NEXT [limit] ROWS ONLY"
 			}
@@ -209,6 +237,10 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 				str += fmt.Sprintf(" OFFSET %d", *t.offset)
 			}
 		}
+	}
+
+	if t.model.db.config.PrintSql {
+		fmt.Printf("sql: %v\n", str)
 	}
 
 	params := make([]interface{}, len(t.bindParams))

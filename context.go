@@ -40,14 +40,6 @@ func (ctx *Context) Db() *kdb {
 	return mainConnect.dbList[ctx.conn]
 }
 
-// 取得当前模型使用的配置
-func (ctx *Context) Config() DbConfig {
-	if ctx.conn == "" {
-		return mainConnect.dbList[mainConnect.config.DefaultConn].config
-	}
-	return mainConnect.dbList[ctx.conn].config
-}
-
 // 监听查询后事件
 func (ctx *Context) OnEventQueryAfter(callback EventCallback) *Context {
 	event := "query_after"
@@ -118,7 +110,6 @@ func (ctx *Context) Transaction(call TransactionCall) error {
 func (ctx *Context) Model(mod interface{}) *Model {
 	model := &Model{}
 	model.context = ctx
-	model.config = ctx.Config()
 	model.db = ctx.Db()
 	model.model = mod
 	model.schema = schema.NewSchema(mod)

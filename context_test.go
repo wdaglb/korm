@@ -31,7 +31,7 @@ func init()  {
 	_ = godotenv.Load(".env")
 	val, _ := strconv.Atoi(os.Getenv("DB_PORT"))
 
-	conn := Connect(Config{MaxOpenConns: 100, MaxIdleConns: 10})
+	conn := NewConnect(Config{MaxOpenConns: 100, MaxIdleConns: 10})
 	err := conn.AddDb(DbConfig{
 		Conn: "default",
 		Driver: os.Getenv("DB_DRIVER"),

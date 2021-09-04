@@ -92,26 +92,54 @@ func (m *Model) fetchRelationDbData() error {
 				return err
 			}
 
+			mapData := make(map[string]*reflect.Value)
 			for i := 0; i < ptr.Elem().Len(); i++ {
 				f := ptr.Elem().Index(i)
 				id := f.FieldByName(relation.Field.GetForeignName())
+				mapData[fmt.Sprintf("%v", id.Interface())] = &f
+			}
 
-				if re := m.relationMap[fmt.Sprintf("%v", id.Interface())]; re != nil {
-					var row reflect.Value
-					typ := m.schema.Data.Type()
-					if typ.Kind() == reflect.Slice || typ.Kind() == reflect.Array {
-						row = m.schema.Data.Index(i)
-					} else {
-						row = m.schema.Data
+			typ := m.schema.Data.Type()
+			if typ.Kind() == reflect.Slice || typ.Kind() == reflect.Array {
+				for i := 0; i < m.schema.Data.Len(); i++ {
+					row := m.schema.Data.Index(i)
+					id := row.FieldByName(relation.Field.GetPrimaryName())
+					idKey := fmt.Sprintf("%v", id.Interface())
+					if mapData[idKey] != nil {
+						fieldValue := row.FieldByName(relation.Field.Name)
+						if err := m.schema.SetStructValue(mapData[idKey].Interface(), fieldValue); err != nil {
+							return err
+						}
 					}
+				}
+			} else {
+				row := m.schema.Data
+				id := row.FieldByName(relation.Field.GetPrimaryName())
+				idKey := fmt.Sprintf("%v", id.Interface())
+				if mapData[idKey] != nil {
 					fieldValue := row.FieldByName(relation.Field.Name)
-
-					if err := m.schema.SetStructValue(f.Interface(), fieldValue); err != nil {
+					if err := m.schema.SetStructValue(mapData[idKey].Interface(), fieldValue); err != nil {
 						return err
 					}
 				}
 			}
 		}
+
+		//
+		//if re := m.relationMap[fmt.Sprintf("%v", id.Interface())]; re != nil {
+		//	var row reflect.Value
+		//	typ := m.schema.Data.Type()
+		//	if typ.Kind() == reflect.Slice || typ.Kind() == reflect.Array {
+		//		row = m.schema.Data.Index(i)
+		//	} else {
+		//		row = m.schema.Data
+		//	}
+		//	fieldValue := row.FieldByName(relation.Field.Name)
+		//
+		//	if err := m.schema.SetStructValue(f.Interface(), fieldValue); err != nil {
+		//		return err
+		//	}
+		//}
 	}
 
 	return nil

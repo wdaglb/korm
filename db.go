@@ -8,13 +8,14 @@ import (
 
 type kdb struct {
 	db *sql.DB
-	config DbConfig
+	config *Config
+	dbConf *DbConfig
 	currentKey *Queue
 	txCount int
 	tx map[int]*sql.Tx
 }
 
-func NewDb(config Config, dbConf DbConfig) (*kdb, error) {
+func NewDb(config *Config, dbConf *DbConfig) (*kdb, error) {
 	var (
 		db *sql.DB
 	)
@@ -31,7 +32,8 @@ func NewDb(config Config, dbConf DbConfig) (*kdb, error) {
 
 	kdb := &kdb{}
 	kdb.db = db
-	kdb.config = dbConf
+	kdb.config = config
+	kdb.dbConf = dbConf
 	kdb.currentKey = newQueue()
 	kdb.tx = make(map[int]*sql.Tx)
 	return kdb, nil
