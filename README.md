@@ -81,6 +81,12 @@ fmt.Printf("rows: %v\n", rows)
 SELECT * FROM test
 ```
 
+## 忽略字段查询
+
+```
+model.IgnoreField("Content")
+```
+
 ## 创建数据
 模型插入会把已经赋值的数据插入的关联表
 ```
