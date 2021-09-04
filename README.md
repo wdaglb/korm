@@ -16,7 +16,7 @@ go get github.com/go-sql-driver/mysql
 ## 连接mysql数据库
 
 ```
-conn := Connect(Config{
+conn := NewConnect(Config{
     DefaultConn: "default",
     MaxOpenConns: 100,
     MaxIdleConns: 10,
@@ -65,7 +65,7 @@ fmt.Printf("id: %d\n", row.Id)
 ```
 执行的sql
 ```
-SELECT * FROM test WHERE id=1
+SELECT column... FROM test WHERE id=1
 ```
 
 ## 查询多行数据
@@ -78,7 +78,7 @@ fmt.Printf("rows: %v\n", rows)
 ```
 执行的sql
 ```
-SELECT * FROM test
+SELECT column... FROM test
 ```
 
 ## 忽略字段查询
