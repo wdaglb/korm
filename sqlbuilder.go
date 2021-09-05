@@ -15,6 +15,7 @@ type SqlBuilder struct {
 	data map[string]interface{}
 	fields []string
 	ignoreFields []string
+	resultFields map[string]string
 	orders []string
 	where *Where
 	group []string
@@ -146,11 +147,14 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 			}
 		}
 
+		t.resultFields = make(map[string]string, 0)
 		for _, v := range fs {
 			if utils.InStrArray(t.ignoreFields, v) {
 				continue
 			}
 			fsv = append(fsv, t.parseField(v))
+			vf, _ := utils.ParseFieldDb(t.schema.Type, v)
+			t.resultFields[v] = vf
 		}
 
 		str = strings.ReplaceAll(str, "[field]", strings.Join(fsv, ","))

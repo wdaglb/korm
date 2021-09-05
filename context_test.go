@@ -113,7 +113,7 @@ func TestUpdate(t *testing.T)  {
 	ctx := NewContext()
 	row := &Test{}
 
-	if ok, err := ctx.Model(&row).Find(); !ok || err != nil {
+	if err := ctx.Model(&row).Find().Error; err != nil {
 		t.Fatalf("getdata fail: %v\n", err)
 	}
 	row.User = "testUpdate"
@@ -129,7 +129,7 @@ func TestSelect(t *testing.T)  {
 	ctx := NewContext()
 	var rows []Test
 	// Where("Id", "in", []int{1, 2, 3, 4}).
-	if err := ctx.Model(&rows).With("Cates").OrderByDesc("Id").Limit(3).Select(); err != nil {
+	if err := ctx.Model(&rows).With("Cates").OrderByDesc("Id").Limit(3).Select().Error; err != nil {
 		t.Fatalf("select fail: %v", err)
 	}
 	fmt.Printf("rows id: %d\n", rows[0].Id)
@@ -147,7 +147,7 @@ func TestFind(t *testing.T)  {
 
 	row := &Test{}
 
-	if ok, err := ctx.Model(&row).With("Cate", "Cates").Find(); !ok || err != nil {
+	if !ctx.Model(&row).With("Cate", "Cates").Find().Exist {
 		t.Fatalf("记录不存在")
 	}
 	fmt.Printf("row cate: %d, %v\n", row.Id, row.Cate)
@@ -160,8 +160,8 @@ func TestDelete(t *testing.T)  {
 	ctx := NewContext()
 	row := &Test{}
 
-	if ok, err := ctx.Model(&row).Find(); !ok || err != nil {
-		t.Fatalf("getdata fail: %v\n", err)
+	if !ctx.Model(&row).Find().Exist {
+		t.Fatalf("记录不存在\n")
 	}
 	fmt.Printf("cates; %v, %v\n", row.Id, row.Cates)
 	if err := ctx.Model(&row).Delete(); err != nil {

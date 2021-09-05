@@ -99,8 +99,7 @@ func Case2Camel(name string) string {
 	return strings.Replace(name, " ", "", -1)
 }
 
-// 解析字段名
-func ParseField(driver string, reType reflect.Type, field string) string {
+func ParseFieldDb(reType reflect.Type, field string) (string, reflect.StructField) {
 	var (
 		p reflect.StructField
 		ok bool
@@ -112,6 +111,12 @@ func ParseField(driver string, reType reflect.Type, field string) string {
 			field = colName
 		}
 	}
+	return field, p
+}
+
+// 解析字段名
+func ParseField(driver string, reType reflect.Type, field string) string {
+	field, _ = ParseFieldDb(reType, field)
 
 	switch driver {
 	case "mssql":

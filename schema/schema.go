@@ -285,6 +285,7 @@ func (schema *Schema) AddArrayItem(data map[string]interface{}) {
 			}
 		}
 
+		// call(fieldValue.Interface())
 		// asValue(ret[colName], p, fieldValue)
 	}
 	tmp := reflect.Append(schema.Data, newValue)

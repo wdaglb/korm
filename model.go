@@ -15,6 +15,7 @@ type Model struct {
 	context *Context
 	builder *SqlBuilder
 	schema *schema.Schema
+	collection *Collection
 	withList []string
 
 	relationData map[string][]*relation
@@ -133,9 +134,12 @@ func (m *Model) HavingOr(field string, op interface{}, condition ...interface{})
 }
 
 // 获取一行数据
-func (m *Model) Find() (bool, error) {
+func (m *Model) Find() *Collection {
+	m.collection = NewCollection()
+
+	m.collection.Type = "find"
 	if m.schema.TableName == "" {
-		return false, errors.New("table is not set")
+		return m.collection.SetError(errors.New("table is not set"))
 	}
 	db := m.db
 	m.builder.p = "select"
@@ -144,27 +148,27 @@ func (m *Model) Find() (bool, error) {
 
 	stmt, err := db.Prepare(sqlStr)
 	if err != nil {
-		return false, fmt.Errorf("prepare fail: %v", err)
+		return m.collection.SetError(fmt.Errorf("prepare fail: %v", err))
 	}
 	defer stmt.Close()
 	rows, err := stmt.Query(bindParams...)
 	if err != nil {
-		return false, fmt.Errorf("query fail: %v", err)
+		return m.collection.SetError(fmt.Errorf("query fail: %v", err))
 	}
 	defer rows.Close()
 
 	if !rows.Next() {
-		return false, nil
+		return m.collection.SetExist(false)
 	}
 
 	ret, err := m.toMap(rows)
 	if err != nil {
-		return true, fmt.Errorf("res to map fail: %v", err)
+		return m.collection.SetExist(true).SetError(fmt.Errorf("res to map fail: %v", err))
 	}
 
 	for k, v := range m.schema.FieldNames {
 		if err := m.schema.SetFieldValue(k, ret[v.ColumnName]); err != nil {
-			return false, err
+			return m.collection.SetExist(false).SetError(err)
 		}
 	}
 	err = m.context.emitEvent("query_after", &CallbackParams{
@@ -173,13 +177,18 @@ func (m *Model) Find() (bool, error) {
 		Rows: rows,
 		Map: ret,
 	})
-	return true, err
+	m.collection.Fields = m.builder.resultFields
+	m.collection.Data = ret
+	return m.collection.SetExist(true).SetError(err)
 }
 
 // 获取数据集
-func (m *Model) Select() error {
+func (m *Model) Select() *Collection {
+	m.collection = NewCollection()
+
+	m.collection.Type = "select"
 	if m.schema.TableName == "" {
-		return errors.New("table is not set")
+		return m.collection.SetError(errors.New("table is not set"))
 	}
 	db := m.db
 	m.builder.p = "select"
@@ -188,12 +197,12 @@ func (m *Model) Select() error {
 
 	stmt, err := db.Prepare(sqlStr)
 	if err != nil {
-		return fmt.Errorf("prepare fail: %v", err)
+		return m.collection.SetError(fmt.Errorf("prepare fail: %v", err))
 	}
 	defer stmt.Close()
 	rows, err := stmt.Query(bindParams...)
 	if err != nil {
-		return fmt.Errorf("query fail: %v", err)
+		return m.collection.SetError(fmt.Errorf("query fail: %v", err))
 	}
 	defer rows.Close()
 
@@ -201,25 +210,33 @@ func (m *Model) Select() error {
 	for rows.Next() {
 		ret, err := m.toMap(rows)
 		if err != nil {
-			return fmt.Errorf("res to map fail: %v", err)
+			return m.collection.SetError(fmt.Errorf("res to map fail: %v", err))
 		}
 		maps = append(maps, ret)
 
 		m.schema.AddArrayItem(ret)
+		m.collection.SetExist(true)
 	}
 
-	return m.context.emitEvent("query_after", &CallbackParams{
+	err = m.context.emitEvent("query_after", &CallbackParams{
 		Action: "select",
 		Model: m,
 		Rows: rows,
 		MapRows: maps,
 	})
+
+	m.collection.Fields = m.builder.resultFields
+	m.collection.Data = maps
+	return m.collection.SetError(err)
 }
 
 // 获取一列数据
-func (m *Model) Value(col string, dst interface{}) (bool, error) {
+func (m *Model) Value(col string, dst interface{}) *Collection {
+	m.collection = NewCollection()
+
+	m.collection.Type = "value"
 	if m.schema.TableName == "" {
-		return false, fmt.Errorf("table is not set")
+		return m.collection.SetError(fmt.Errorf("table is not set"))
 	}
 	db := m.db
 	m.builder.p = "select"
@@ -228,19 +245,19 @@ func (m *Model) Value(col string, dst interface{}) (bool, error) {
 
 	stmt, err := db.Prepare(sqlStr)
 	if err != nil {
-		return false, fmt.Errorf("prepare fail: %v", err)
+		return m.collection.SetError(fmt.Errorf("prepare fail: %v", err))
 	}
 	defer stmt.Close()
 	rows, err := stmt.Query(bindParams...)
 	if err != nil {
-		return false, fmt.Errorf("query fail: %v", err)
+		return m.collection.SetError(fmt.Errorf("query fail: %v", err))
 	}
 	defer rows.Close()
 
 	if rows.Next() {
 		ret, err := m.toMap(rows)
 		if err != nil {
-			return true, fmt.Errorf("res to map fail: %v", err)
+			return m.collection.SetExist(true).SetError(fmt.Errorf("res to map fail: %v", err))
 		}
 		p := reflect.TypeOf(dst)
 		if p.Kind() == reflect.Ptr {
@@ -258,57 +275,57 @@ func (m *Model) Value(col string, dst interface{}) (bool, error) {
 			Rows: rows,
 			Map: ret,
 		})
-		return true, err
+		m.collection.Data = m.model
+		return m.collection.SetExist(true).SetError(fmt.Errorf("res to map fail: %v", err))
 	}
 
-	return false, nil
+	return m.collection.SetExist(false)
 }
 
 // 是否存在记录
-func (m *Model) Exist() bool {
+func (m *Model) Exist() *Collection {
 	m.builder.fields = []string{}
-	ok, err := m.Field(m.schema.PrimaryKey).Find()
-	return ok && err == nil
+	return m.Field(m.schema.PrimaryKey).Find()
 }
 
 // 统计
 func (m *Model) Count() (int64, error) {
 	var dst int64
 	m.builder.fields = []string{"COUNT(*) AS __COUNT__"}
-	_, err := m.Value("__COUNT__", &dst)
-	return dst, err
+	c := m.Value("__COUNT__", &dst)
+	return dst, c.Error
 }
 
 // 求和
 func (m *Model) Sum(col string, dst interface{}) error {
 	p := utils.ParseField(m.db.dbConf.Driver, m.schema.Type, col)
 	m.builder.fields = []string{fmt.Sprintf("SUM(%s) AS __SUM__", p)}
-	_, err := m.Value("__SUM__", dst)
-	return err
+	c := m.Value("__SUM__", dst)
+	return c.Error
 }
 
 // 最大值
 func (m *Model) Max(col string, dst interface{}) error {
 	p := utils.ParseField(m.db.dbConf.Driver, m.schema.Type, col)
 	m.builder.fields = []string{fmt.Sprintf("MAX(%s) AS __VALUE__", p)}
-	_, err := m.Value("__VALUE__", dst)
-	return err
+	c := m.Value("__VALUE__", dst)
+	return c.Error
 }
 
 // 最小值
 func (m *Model) Min(col string, dst interface{}) error {
 	p := utils.ParseField(m.db.dbConf.Driver, m.schema.Type, col)
 	m.builder.fields = []string{fmt.Sprintf("MIN(%s) AS __VALUE__", p)}
-	_, err := m.Value("__VALUE__", dst)
-	return err
+	c := m.Value("__VALUE__", dst)
+	return c.Error
 }
 
 // 平均值
 func (m *Model) Avg(col string, dst *float64) error {
 	p := utils.ParseField(m.db.dbConf.Driver, m.schema.Type, col)
 	m.builder.fields = []string{fmt.Sprintf("AVG(%s) AS __VALUE__", p)}
-	_, err := m.Value("__VALUE__", dst)
-	return err
+	c := m.Value("__VALUE__", dst)
+	return c.Error
 }
 
 // query

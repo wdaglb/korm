@@ -88,7 +88,7 @@ func (m *Model) fetchRelationDbData() error {
 
 			ptr.Elem().Set(reflect.MakeSlice(sliceOf, 0, 0))
 
-			if err := m.context.Model(ptr.Interface()).Where(relation.ForeignKey, "in", pks).Select(); err != nil {
+			if err := m.context.Model(ptr.Interface()).Where(relation.ForeignKey, "in", pks).Select().Error; err != nil {
 				return err
 			}
 
