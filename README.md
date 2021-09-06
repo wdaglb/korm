@@ -57,7 +57,7 @@ type Test struct {
 ## 查询一行数据
 ```
 row := &Test{}
-if ok, err := ctx.Model(&row).Where("Id", 1).Find(); !ok || err != nil {
+if !ctx.Model(&row).Where("Id", 1).Find().Exist {
     fmt.Println("记录不存在")
     return
 }
@@ -71,8 +71,9 @@ SELECT column... FROM test WHERE id=1
 ## 查询多行数据
 ```
 var rows []Test
-if err := ctx.Model(&rows).Select(); err != nil {
+if ctx.Model(&rows).Select().Error != nil {
     fmt.Println("查询错误")
+    return
 }
 fmt.Printf("rows: %v\n", rows)
 ```
