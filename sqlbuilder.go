@@ -132,6 +132,9 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 	switch t.p {
 	case "select":
 		str = "SELECT [field] FROM [table]"
+		if t.model.db.dbConf.Driver == "mssql" && t.limit != nil && t.offset == nil {
+			str = strings.ReplaceAll(str, "SELECT ", fmt.Sprintf("SELECT TOP %d", *t.limit))
+		}
 		var (
 			fs []string
 			fsv []string
@@ -225,10 +228,7 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 	case "mssql":
 		if t.offset != nil {
 			str += fmt.Sprintf(" OFFSET %d", *t.offset)
-			switch t.model.db.dbConf.Driver {
-			case "mssql":
-				str += " ROWS FETCH NEXT [limit] ROWS ONLY"
-			}
+			str += " ROWS FETCH NEXT [limit] ROWS ONLY"
 		}
 	case "mysql":
 		if t.p == "select" {
