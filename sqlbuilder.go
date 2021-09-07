@@ -133,7 +133,7 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 	case "select":
 		str = "SELECT [field] FROM [table]"
 		if t.model.db.dbConf.Driver == "mssql" && t.limit != nil && t.offset == nil {
-			str = strings.ReplaceAll(str, "SELECT ", fmt.Sprintf("SELECT TOP %d", *t.limit))
+			str = strings.ReplaceAll(str, "SELECT ", fmt.Sprintf("SELECT TOP %d ", *t.limit))
 		}
 		var (
 			fs []string
