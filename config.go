@@ -2,8 +2,9 @@ package korm
 
 type Config struct {
 	DefaultConn string
-	MaxOpenConns int
-	MaxIdleConns int
+	MaxOpenConns int // 最大打开连接数
+	MaxIdleConns int // 最大空闲连接数
+	ConnMaxLifetime int // 保持连接时间
 	PrintSql bool
 }
 
