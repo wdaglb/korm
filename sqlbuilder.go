@@ -99,6 +99,11 @@ func (t *SqlBuilder) AddOrder(field string, val string) *SqlBuilder {
 	return t
 }
 
+func (t *SqlBuilder) AddOrderRaw(field string, val string) *SqlBuilder {
+	t.orders = append(t.orders, field + " " + val)
+	return t
+}
+
 func (t *SqlBuilder) AddGroup(name string) *SqlBuilder {
 	t.group = append(t.group, t.parseField(name))
 	return t
@@ -173,7 +178,6 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 				continue
 			}
 			if t.schema.FieldNames[k].DataType == "" {
-				fmt.Printf("忽略: %v\n", k)
 				continue
 			}
 			t.bindParam(v)
@@ -185,14 +189,34 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 	case "update":
 		str = "UPDATE [table] SET [values]"
 		values := make([]string, 0)
-		for k, v := range t.data {
+
+
+		var (
+			fs []string
+		)
+		if len(t.fields) > 0 {
+			fs = t.fields
+		} else {
+			for _, f := range t.schema.Fields {
+				if f.DataType == "" {
+					continue
+				}
+				fs = append(fs, f.Name)
+			}
+		}
+
+		for _, k := range fs {
 			if k == t.schema.PrimaryKey {
 				continue
 			}
-			if t.schema.FieldNames[k].DataType == "" {
+			f := t.schema.FieldNames[k]
+			if f.DataType == "" {
 				continue
 			}
-			t.bindParam(v)
+			if utils.InStrArray(t.ignoreFields, k) {
+				continue
+			}
+			t.bindParam(t.data[k])
 			values = append(values, fmt.Sprintf("%s=?", t.parseField(k)))
 		}
 		str = strings.ReplaceAll(str, "[values]", strings.Join(values, ","))
