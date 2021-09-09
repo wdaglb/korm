@@ -1,6 +1,7 @@
 package korm
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/wdaglb/korm/schema"
 )
@@ -120,4 +121,42 @@ func (ctx *Context) Model(mod interface{}) *Model {
 	model.builder = NewSqlBuilder(model, model.schema)
 
 	return model
+}
+
+// query
+func (ctx *Context) Query(sqlStr string, params ...interface{}) (*sql.Rows, error) {
+	var (
+		err error
+		stmt *sql.Stmt
+	)
+	db := ctx.Db()
+	stmt, err = db.Prepare(sqlStr)
+	if err != nil {
+		return nil, fmt.Errorf("prepare fail: %v", err)
+	}
+	defer stmt.Close()
+	rows, err := stmt.Query(params...)
+	if err != nil {
+		return nil, fmt.Errorf("query fail: %v", err)
+	}
+	return rows, nil
+}
+
+// exec
+func (ctx *Context) Exec(sqlStr string, params ...interface{}) (sql.Result, error) {
+	var (
+		err error
+		stmt *sql.Stmt
+	)
+	db := ctx.Db()
+	stmt, err = db.Prepare(sqlStr)
+	if err != nil {
+		return nil, fmt.Errorf("prepare fail: %v", err)
+	}
+	defer stmt.Close()
+	rows, err := stmt.Exec(params...)
+	if err != nil {
+		return nil, fmt.Errorf("exec fail: %v", err)
+	}
+	return rows, nil
 }

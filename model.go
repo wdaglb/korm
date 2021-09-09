@@ -328,25 +328,6 @@ func (m *Model) Avg(col string, dst *float64) error {
 	return c.Error
 }
 
-// query
-func (m *Model) Query(sqlStr string, params ...interface{}) (*sql.Rows, error) {
-	var (
-		err error
-		stmt *sql.Stmt
-	)
-	db := m.db
-	stmt, err = db.Prepare(sqlStr)
-	if err != nil {
-		return nil, fmt.Errorf("prepare fail: %v", err)
-	}
-	defer stmt.Close()
-	rows, err := stmt.Query(params...)
-	if err != nil {
-		return nil, fmt.Errorf("query fail: %v", err)
-	}
-	return rows, nil
-}
-
 // 创建
 func (m *Model) Create() error {
 	db := m.db
