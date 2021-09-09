@@ -113,6 +113,20 @@ func (m *Model) OrderByAsc(field ...string) *Model {
 	return m
 }
 
+func (m *Model) OrderRawByDesc(field ...string) *Model {
+	for _, f := range field {
+		m.builder.AddOrderRaw(f, "DESC")
+	}
+	return m
+}
+
+func (m *Model) OrderRawByAsc(field ...string) *Model {
+	for _, f := range field {
+		m.builder.AddOrderRaw(f, "ASC")
+	}
+	return m
+}
+
 func (m *Model) Offset(val int) *Model {
 	m.builder.offset = &val
 	return m

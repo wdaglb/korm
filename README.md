@@ -18,8 +18,9 @@ go get github.com/go-sql-driver/mysql
 ```
 conn := NewConnect(Config{
     DefaultConn: "default",
-    MaxOpenConns: 100,
-    MaxIdleConns: 10,
+    MaxOpenConns: 100, // 最大打开连接数
+    MaxIdleConns: 10,  // 最大空闲连接数
+    ConnMaxLifetime: 7200, // 保持连接时间
 })
 err := conn.AddDb(DbConfig{
     Conn: "default",

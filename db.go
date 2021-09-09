@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 )
 
 type kdb struct {
@@ -29,7 +30,13 @@ func NewDb(config *Config, dbConf *DbConfig) (*kdb, error) {
 	if err != nil {
 		return nil, err
 	}
+	if config.ConnMaxLifetime == 0 {
+		config.ConnMaxLifetime = 3600 * 2
+	}
 
+	db.SetMaxOpenConns(config.MaxOpenConns)
+	db.SetMaxIdleConns(config.MaxIdleConns)
+	db.SetConnMaxLifetime(time.Duration(config.ConnMaxLifetime) * time.Second)
 	kdb := &kdb{}
 	kdb.db = db
 	kdb.config = config
