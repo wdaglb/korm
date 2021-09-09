@@ -31,7 +31,7 @@ func init()  {
 	_ = godotenv.Load(".env")
 	val, _ := strconv.Atoi(os.Getenv("DB_PORT"))
 
-	conn := NewConnect(Config{MaxOpenConns: 100, MaxIdleConns: 10})
+	conn := NewConnect(Config{MaxOpenConns: 100, MaxIdleConns: 10, PrintSql: true})
 	err := conn.AddDb(DbConfig{
 		Conn: "default",
 		Driver: os.Getenv("DB_DRIVER"),
@@ -147,7 +147,9 @@ func TestFind(t *testing.T)  {
 
 	row := &Test{}
 
-	if !ctx.Model(&row).With("Cate", "Cates").Find().Exist {
+	if !ctx.Model(&row).With("Cates", func(db *Model) {
+		db.OrderByDesc("Id").Limit(2)
+	}).Find().Exist {
 		t.Fatalf("记录不存在")
 	}
 	fmt.Printf("row cate: %d, %v\n", row.Id, row.Cate)

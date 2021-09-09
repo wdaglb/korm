@@ -16,7 +16,7 @@ type Model struct {
 	builder *SqlBuilder
 	schema *schema.Schema
 	collection *Collection
-	withList []string
+	withList map[string]WithCond
 
 	relationData map[string][]*relation
 	relationMap map[string]*relation
@@ -44,20 +44,12 @@ func (m *Model) toMap(rows *sql.Rows) (map[string]interface{}, error) {
 }
 
 // 关联加载
-func (m *Model) With(list ...string) *Model {
-	temps := make([]string, 0)
-	if len(m.withList) > 0 {
-		for _, v := range m.withList {
-			for _, v2 := range list {
-				if v2 != v {
-					temps = append(temps, v2)
-				}
-			}
-		}
+func (m *Model) With(name string, cond ...WithCond) *Model {
+	if len(cond) == 0 {
+		m.withList[name] = nil
 	} else {
-		temps = list
+		m.withList[name] = cond[0]
 	}
-	m.withList = append(m.withList, temps...)
 	return m
 }
 

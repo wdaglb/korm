@@ -114,8 +114,11 @@ func (ctx *Context) Model(mod interface{}) *Model {
 	model.db = ctx.Db()
 	model.model = mod
 	model.schema = schema.NewSchema(mod)
+	model.withList = make(map[string]WithCond)
 	if len(model.schema.WithList) > 0 {
-		model.withList = append(model.withList, model.schema.WithList...)
+		for _, n := range model.schema.WithList {
+			model.withList[n] = nil
+		}
 	}
 
 	model.builder = NewSqlBuilder(model, model.schema)
