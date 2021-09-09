@@ -181,10 +181,14 @@ func (m *Model) insertRelationData() error {
 		if v.FieldType.Kind() == reflect.Slice || v.FieldType.Kind() == reflect.Array {
 			for i := 0; i < f.Len(); i++ {
 				row := f.Index(i)
-				if row.Kind() == reflect.Ptr {
-					row = row.Elem()
-				}
-				if err := m.context.Model(row.Interface()).Create(); err != nil {
+				name := relation.Field.GetPrimaryName()
+				pv := m.schema.Data.FieldByName(name)
+				row.FieldByName(relation.Field.GetForeignName()).Set(pv)
+				rowData := row.Addr().Interface()
+				//if row.Kind() == reflect.Ptr {
+				//	row = row.Elem()
+				//}
+				if err := m.context.Model(rowData).Create(); err != nil {
 					return err
 				}
 			}

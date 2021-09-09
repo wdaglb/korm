@@ -178,7 +178,6 @@ func (schema *Schema) SetStructValue(src interface{}, dst reflect.Value) (err er
 	}
 	sv := utils.Indirect(reflect.ValueOf(src))
 	if dst.Kind() == sv.Kind() && sv.Type().ConvertibleTo(dst.Type()) {
-		fmt.Printf("xxx:%v, %v\n", dst.Type(), dst.Kind())
 		dst.Set(sv.Convert(dst.Type()))
 		return nil
 	}

@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 	"testing"
+	"time"
 )
 
 type Test struct {
@@ -24,7 +25,7 @@ type Test struct {
 type TestCate struct {
 	Id int64 `db:"id"`
 	Name string `db:"name"`
-	TestId int `db:"test_id"`
+	TestId int64 `db:"test_id"`
 }
 
 func init()  {
@@ -105,6 +106,7 @@ func TestCreate(t *testing.T)  {
 
 	insertData := &Test{
 		User: "test",
+		UpdateTime: sqltype.DateTime(time.Now()),
 		Cates: cates,
 	}
 
@@ -122,10 +124,14 @@ func TestUpdate(t *testing.T)  {
 	ctx := NewContext()
 	row := &Test{}
 
-	if err := ctx.Model(&row).Find().Error; err != nil {
+	if err := ctx.Model(&row).With("Cates").Find().Error; err != nil {
 		t.Fatalf("getdata fail: %v\n", err)
 	}
 	row.User = "testUpdate"
+	for i := range row.Cates {
+		row.Cates[i].Name = "xx"
+		fmt.Printf("cc: %v\n", row.Cates[i])
+	}
 	// row.Cate.Name = "2xx3"
 	if err := ctx.Model(&row).Update(); err != nil {
 		t.Fatalf("update fail: %v\n", err)
@@ -171,7 +177,7 @@ func TestDelete(t *testing.T)  {
 	ctx := NewContext()
 	row := &Test{}
 
-	if !ctx.Model(&row).Find().Exist {
+	if !ctx.Model(&row).With("Cates").Find().Exist {
 		t.Fatalf("记录不存在\n")
 	}
 	fmt.Printf("cates; %v, %v\n", row.Id, row.Cates)
