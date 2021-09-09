@@ -16,4 +16,5 @@ type DbConfig struct {
 	Pass string
 	Port int
 	Database string
+	TablePrefix string
 }

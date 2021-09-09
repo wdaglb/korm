@@ -132,6 +132,17 @@ func (t *SqlBuilder) AddHaving(logic string, field string, op interface{}, condi
 	return t
 }
 
+func (t *SqlBuilder) GetTable() string {
+	var table string
+	switch t.model.db.dbConf.Driver {
+	case "mssql":
+		table = fmt.Sprintf("[%s]", t.model.db.dbConf.TablePrefix + t.schema.TableName)
+	case "mysql":
+		table = fmt.Sprintf("`%s`", t.model.db.dbConf.TablePrefix + t.schema.TableName)
+	}
+	return table
+}
+
 func (t *SqlBuilder) ToString() (string, []interface{}) {
 	str := ""
 	switch t.p {
@@ -240,14 +251,7 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 	case "delete":
 		str = "DELETE FROM [table]"
 	}
-	var table string
-	switch t.model.db.dbConf.Driver {
-	case "mssql":
-		table = fmt.Sprintf("[%s]", t.schema.TableName)
-	case "mysql":
-		table = fmt.Sprintf("`%s`", t.schema.TableName)
-	}
-	str = strings.ReplaceAll(str, "[table]", table)
+	str = strings.ReplaceAll(str, "[table]", t.GetTable())
 
 	switch t.p {
 	case "select", "update", "delete":
