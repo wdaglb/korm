@@ -92,11 +92,15 @@ func (m *Model) fetchRelationDbData() error {
 				return err
 			}
 
-			mapData := make(map[string]*reflect.Value)
+			mapData := make(map[string][]*reflect.Value)
 			for i := 0; i < ptr.Elem().Len(); i++ {
 				f := ptr.Elem().Index(i)
 				id := f.FieldByName(relation.Field.GetForeignName())
-				mapData[fmt.Sprintf("%v", id.Interface())] = &f
+				k := fmt.Sprintf("%v", id.Interface())
+				if mapData[k] == nil {
+					mapData[k] = make([]*reflect.Value, 0)
+				}
+				mapData[k] = append(mapData[k], &f)
 			}
 
 			typ := m.schema.Data.Type()
@@ -106,9 +110,11 @@ func (m *Model) fetchRelationDbData() error {
 					id := row.FieldByName(relation.Field.GetPrimaryName())
 					idKey := fmt.Sprintf("%v", id.Interface())
 					if mapData[idKey] != nil {
-						fieldValue := row.FieldByName(relation.Field.Name)
-						if err := m.schema.SetStructValue(mapData[idKey].Interface(), fieldValue); err != nil {
-							return err
+						for _, v2 := range mapData[idKey] {
+							fieldValue := row.FieldByName(relation.Field.Name)
+							if err := m.schema.SetStructValue(v2.Interface(), fieldValue); err != nil {
+								return err
+							}
 						}
 					}
 				}
@@ -117,10 +123,16 @@ func (m *Model) fetchRelationDbData() error {
 				id := row.FieldByName(relation.Field.GetPrimaryName())
 				idKey := fmt.Sprintf("%v", id.Interface())
 				if mapData[idKey] != nil {
-					fieldValue := row.FieldByName(relation.Field.Name)
-					if err := m.schema.SetStructValue(mapData[idKey].Interface(), fieldValue); err != nil {
-						return err
+					for _, v2 := range mapData[idKey] {
+						fieldValue := row.FieldByName(relation.Field.Name)
+						if err := m.schema.SetStructValue(v2.Interface(), fieldValue); err != nil {
+							return err
+						}
 					}
+					//fieldValue := row.FieldByName(relation.Field.Name)
+					//if err := m.schema.SetStructValue(mapData[idKey].Interface(), fieldValue); err != nil {
+					//	return err
+					//}
 				}
 			}
 		}
