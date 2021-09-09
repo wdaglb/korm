@@ -95,8 +95,17 @@ func TestAvg(t *testing.T)  {
 func TestCreate(t *testing.T)  {
 	ctx := NewContext()
 
+	cates := make([]TestCate, 0)
+	cates = append(cates, TestCate{
+		Name: "分类1",
+	})
+	cates = append(cates, TestCate{
+		Name: "分类2",
+	})
+
 	insertData := &Test{
 		User: "test",
+		Cates: cates,
 	}
 
 	if err := ctx.Model(&insertData).Create(); err != nil {
