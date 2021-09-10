@@ -273,7 +273,7 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 	case "mssql":
 		if t.offset != nil {
 			str += fmt.Sprintf(" OFFSET %d", *t.offset)
-			str += " ROWS FETCH NEXT [limit] ROWS ONLY"
+			str += fmt.Sprintf(" ROWS FETCH NEXT %d ROWS ONLY", *t.limit)
 		}
 	case "mysql":
 		if t.p == "select" {
