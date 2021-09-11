@@ -297,7 +297,7 @@ func (m *Model) Exist() *Collection {
 // 统计
 func (m *Model) Count() (int64, error) {
 	var dst int64
-	m.builder.fields = []string{"COUNT(*) AS __COUNT__"}
+	m.builder.AddFieldRaw("COUNT(*) AS __COUNT__")
 	c := m.Value("__COUNT__", &dst)
 	return dst, c.Error
 }
@@ -305,7 +305,7 @@ func (m *Model) Count() (int64, error) {
 // 求和
 func (m *Model) Sum(col string, dst interface{}) error {
 	p := utils.ParseField(m.db.dbConf.Driver, m.schema.Type, col)
-	m.builder.fields = []string{fmt.Sprintf("SUM(%s) AS __SUM__", p)}
+	m.builder.AddFieldRaw(fmt.Sprintf("SUM(%s) AS __SUM__", p))
 	c := m.Value("__SUM__", dst)
 	return c.Error
 }
@@ -313,7 +313,7 @@ func (m *Model) Sum(col string, dst interface{}) error {
 // 最大值
 func (m *Model) Max(col string, dst interface{}) error {
 	p := utils.ParseField(m.db.dbConf.Driver, m.schema.Type, col)
-	m.builder.fields = []string{fmt.Sprintf("MAX(%s) AS __VALUE__", p)}
+	m.builder.AddFieldRaw(fmt.Sprintf("MAX(%s) AS __VALUE__", p))
 	c := m.Value("__VALUE__", dst)
 	return c.Error
 }
@@ -321,7 +321,7 @@ func (m *Model) Max(col string, dst interface{}) error {
 // 最小值
 func (m *Model) Min(col string, dst interface{}) error {
 	p := utils.ParseField(m.db.dbConf.Driver, m.schema.Type, col)
-	m.builder.fields = []string{fmt.Sprintf("MIN(%s) AS __VALUE__", p)}
+	m.builder.AddFieldRaw(fmt.Sprintf("MIN(%s) AS __VALUE__", p))
 	c := m.Value("__VALUE__", dst)
 	return c.Error
 }
@@ -329,7 +329,7 @@ func (m *Model) Min(col string, dst interface{}) error {
 // 平均值
 func (m *Model) Avg(col string, dst *float64) error {
 	p := utils.ParseField(m.db.dbConf.Driver, m.schema.Type, col)
-	m.builder.fields = []string{fmt.Sprintf("AVG(%s) AS __VALUE__", p)}
+	m.builder.AddFieldRaw(fmt.Sprintf("AVG(%s) AS __VALUE__", p))
 	c := m.Value("__VALUE__", dst)
 	return c.Error
 }
