@@ -51,9 +51,9 @@ func init()  {
 // 测试统计查询
 func TestCount(t *testing.T)  {
 	ctx := NewContext()
-	count, _ := ctx.Model(Test{}).Count()
+	count, err := ctx.Model(Test{}).Count()
 
-	t.Logf("count: %v\n", count)
+	t.Logf("count: %v, %v\n", count, err)
 }
 
 // 测试求和查询

@@ -240,6 +240,7 @@ func (m *Model) Select() *Collection {
 func (m *Model) Value(col string, dst interface{}) *Collection {
 	m.collection = NewCollection()
 
+	m.builder.clearField = true
 	m.collection.Type = "value"
 	if m.schema.TableName == "" {
 		return m.collection.SetError(fmt.Errorf("table is not set"))
@@ -263,17 +264,14 @@ func (m *Model) Value(col string, dst interface{}) *Collection {
 	if rows.Next() {
 		ret, err := m.toMap(rows)
 		if err != nil {
-			return m.collection.SetExist(true).SetError(fmt.Errorf("res to map fail: %v", err))
-		}
-		p := reflect.TypeOf(dst)
-		if p.Kind() == reflect.Ptr {
-			p = p.Elem()
+			return m.collection.SetError(err)
 		}
 		value := reflect.ValueOf(dst)
 		if value.Kind() == reflect.Ptr {
 			value = value.Elem()
 		}
 		utils.CallScan(ret[col], value)
+		// fmt.Printf("vvv: %v, %v\n", ret[col], col)
 
 		err = m.context.emitEvent("query_after", &CallbackParams{
 			Action: "value",
@@ -282,7 +280,7 @@ func (m *Model) Value(col string, dst interface{}) *Collection {
 			Map: ret,
 		})
 		m.collection.Data = m.model
-		return m.collection.SetExist(true).SetError(fmt.Errorf("res to map fail: %v", err))
+		return m.collection.SetExist(true)
 	}
 
 	return m.collection.SetExist(false)
@@ -297,6 +295,7 @@ func (m *Model) Exist() *Collection {
 // 统计
 func (m *Model) Count() (int64, error) {
 	var dst int64
+	m.builder.fields = []string{}
 	m.builder.AddFieldRaw("COUNT(*) AS __COUNT__")
 	c := m.Value("__COUNT__", &dst)
 	return dst, c.Error
@@ -304,6 +303,7 @@ func (m *Model) Count() (int64, error) {
 
 // 求和
 func (m *Model) Sum(col string, dst interface{}) error {
+	m.builder.fields = []string{}
 	p := utils.ParseField(m.db.dbConf.Driver, m.schema.Type, col)
 	m.builder.AddFieldRaw(fmt.Sprintf("SUM(%s) AS __SUM__", p))
 	c := m.Value("__SUM__", dst)
@@ -312,6 +312,7 @@ func (m *Model) Sum(col string, dst interface{}) error {
 
 // 最大值
 func (m *Model) Max(col string, dst interface{}) error {
+	m.builder.fields = []string{}
 	p := utils.ParseField(m.db.dbConf.Driver, m.schema.Type, col)
 	m.builder.AddFieldRaw(fmt.Sprintf("MAX(%s) AS __VALUE__", p))
 	c := m.Value("__VALUE__", dst)
@@ -320,6 +321,7 @@ func (m *Model) Max(col string, dst interface{}) error {
 
 // 最小值
 func (m *Model) Min(col string, dst interface{}) error {
+	m.builder.fields = []string{}
 	p := utils.ParseField(m.db.dbConf.Driver, m.schema.Type, col)
 	m.builder.AddFieldRaw(fmt.Sprintf("MIN(%s) AS __VALUE__", p))
 	c := m.Value("__VALUE__", dst)
@@ -328,6 +330,7 @@ func (m *Model) Min(col string, dst interface{}) error {
 
 // 平均值
 func (m *Model) Avg(col string, dst *float64) error {
+	m.builder.fields = []string{}
 	p := utils.ParseField(m.db.dbConf.Driver, m.schema.Type, col)
 	m.builder.AddFieldRaw(fmt.Sprintf("AVG(%s) AS __VALUE__", p))
 	c := m.Value("__VALUE__", dst)

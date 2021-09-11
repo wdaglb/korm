@@ -15,7 +15,9 @@ type SqlBuilder struct {
 	data map[string]interface{}
 	fields []string
 	ignoreFields []string
+	rawFields []string
 	resultFields map[string]string
+	clearField bool
 	orders []string
 	where *Where
 	group []string
@@ -57,7 +59,7 @@ func (t *SqlBuilder) AddField(str string) *SqlBuilder {
 func (t *SqlBuilder) AddFieldRaw(str string) *SqlBuilder {
 	fields := strings.Split(str, ",")
 	for _, f := range fields {
-		t.fields = append(t.fields, f)
+		t.rawFields = append(t.rawFields, f)
 	}
 	return t
 }
@@ -155,14 +157,16 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 			fs []string
 			fsv []string
 		)
-		if len(t.fields) > 0 {
-			fs = t.fields
-		} else {
-			for _, f := range t.schema.Fields {
-				if f.DataType == "" {
-					continue
+		if !t.clearField {
+			if len(t.fields) > 0 {
+				fs = t.fields
+			} else {
+				for _, f := range t.schema.Fields {
+					if f.DataType == "" {
+						continue
+					}
+					fs = append(fs, f.Name)
 				}
-				fs = append(fs, f.Name)
 			}
 		}
 
@@ -172,6 +176,11 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 				continue
 			}
 			fsv = append(fsv, t.parseField(v))
+			vf, _ := utils.ParseFieldDb(t.schema.Type, v)
+			t.resultFields[v] = vf
+		}
+		for _, v := range t.rawFields {
+			fsv = append(fsv, v)
 			vf, _ := utils.ParseFieldDb(t.schema.Type, v)
 			t.resultFields[v] = vf
 		}
