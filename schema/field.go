@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"github.com/wdaglb/korm/utils"
 	"reflect"
 )
 
@@ -28,10 +29,7 @@ type Field struct {
 }
 
 func (field *Field) GetColumnName() string {
-	col := field.Tag.Get("db")
-	if col == "" {
-		return field.Name
-	}
+	col := utils.GetColumnName(field.StructField)
 	return col
 }
 

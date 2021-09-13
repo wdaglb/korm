@@ -75,12 +75,8 @@ func (schema *Schema) AddField(structField reflect.StructField) *Field {
 		DeepType: schema.Indirect(structField.Type),
 	}
 
-	tagDb := structField.Tag.Get("db")
-	if tagDb != "" {
-		field.ColumnName = tagDb
-	} else {
-		field.ColumnName = field.Name
-	}
+	tagDb := field.GetColumnName()
+	field.ColumnName = tagDb
 	fieldValue := reflect.New(field.IndirectFieldType)
 
 	switch reflect.Indirect(fieldValue).Kind() {

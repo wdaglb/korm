@@ -99,6 +99,18 @@ func Case2Camel(name string) string {
 	return strings.Replace(name, " ", "", -1)
 }
 
+func GetColumnName(field reflect.StructField) string {
+	db := field.Tag.Get("db")
+	if db != "" {
+		return db
+	}
+	db = field.Tag.Get("json")
+	if db != "" {
+		return db
+	}
+	return field.Name
+}
+
 func ParseFieldDb(reType reflect.Type, field string) (string, reflect.StructField) {
 	var (
 		p reflect.StructField
@@ -106,10 +118,7 @@ func ParseFieldDb(reType reflect.Type, field string) (string, reflect.StructFiel
 	)
 	p, ok = reType.FieldByName(field)
 	if ok {
-		colName := p.Tag.Get("db")
-		if colName != "" {
-			field = colName
-		}
+		field = GetColumnName(p)
 	}
 	return field, p
 }
@@ -296,10 +305,7 @@ func MapToStruct(data map[string]interface{}, dst interface{})  {
 	for i := 0; i < fieldNum; i++ {
 		typeofItem := typeOf.Field(i)
 		valueOfItem := valueOf.Field(i)
-		colName := typeofItem.Name
-		if typeofItem.Tag.Get("db") != "" {
-			colName = typeofItem.Tag.Get("db")
-		}
+		colName := GetColumnName(typeofItem)
 		// val := data[colName]
 		CallScan(data[colName], valueOfItem)
 		//if valueOfItem.Kind() == reflect.Ptr {
