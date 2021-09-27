@@ -41,7 +41,7 @@ func NewSqlBuilder(model *Model, schema *schema.Schema) *SqlBuilder {
 }
 
 func (t *SqlBuilder) parseField(field string) string {
-	return utils.ParseField(t.model.db.dbConf.Driver, t.schema.Type, field)
+ 	return utils.ParseField(t.model.db.dbConf.Driver, t.schema.Type, field)
 }
 
 func (t *SqlBuilder) bindParam(value interface{}) {
