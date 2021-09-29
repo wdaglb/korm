@@ -20,7 +20,7 @@ type Test struct {
 	UpdateTime sqltype.DateTime `db:"update_time"`
 	Cate *TestCate `pk:"Id" fk:"TestId"`
 	Cates []TestCate `pk:"Id" fk:"TestId"`
-	Json *sqltype.KJson `db:"json"`
+	Json sqltype.KJson `db:"json"`
 }
 
 type TestCate struct {
@@ -110,7 +110,7 @@ func TestCreate(t *testing.T)  {
 		User: "test",
 		UpdateTime: sqltype.DateTime(time.Now()),
 		Cates: cates,
-		Json: &jsonData,
+		Json: jsonData,
 	}
 
 	if err := ctx.Model(&insertData).Create(); err != nil {
@@ -165,14 +165,20 @@ func TestFind(t *testing.T)  {
 
 	row := &Test{}
 
-	if !ctx.Model(&row).With("Cates", func(db *Model) {
+	if coll := ctx.Model(&row).With("Cates", func(db *Model) {
 		db.OrderByDesc("Id").Limit(2)
-	}).Find().Exist {
-		t.Fatalf("记录不存在")
+	}).Find(); !coll.Exist {
+		if coll.Error != nil {
+			t.Fatalf("%v", coll.Error)
+		} else {
+			t.Fatalf("记录不存在")
+		}
 	}
 	fmt.Printf("row cate: %d, %v\n", row.Id, row.Cate)
 
 	fmt.Printf("row cates: %d, %v\n", row.Id, row.Cates)
+
+	fmt.Printf("row json: %d, %v\n", row.Id, string(row.Json))
 }
 
 // 测试数据删除

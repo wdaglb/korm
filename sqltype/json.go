@@ -30,7 +30,7 @@ func (t *KJson) Scan(value interface{}) error {
 	}
 	v, ok := value.([]byte)
 	if !ok {
-		return errors.New("Invalid Scan Source")
+		return nil
 	}
 	*t = append((*t)[0:0], v...)
 	return nil

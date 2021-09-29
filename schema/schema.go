@@ -190,6 +190,7 @@ func (schema *Schema) SetStructValue(src interface{}, dst reflect.Value) (err er
 			dvt := dst.Interface()
 
 			if scanner, ok := dvt.(mixins.Scanner); ok {
+				fmt.Printf("name: %v, %v, %v\n", sv, dst.IsValid(), dst.Type())
 				return scanner.Scan(src)
 			}
 			dst.Elem().Set(sv)
@@ -197,6 +198,16 @@ func (schema *Schema) SetStructValue(src interface{}, dst reflect.Value) (err er
 		}
 		return schema.SetStructValue(src, dst)
 	case reflect.Slice, reflect.Array:
+		if sv.Kind() == reflect.String {
+			val := []byte(fmt.Sprintf("%v", sv.Interface()))
+			rv := reflect.MakeSlice(dst.Type(), 0, 20)
+			for _, v := range val {
+				rv = reflect.Append(rv, reflect.ValueOf(v))
+			}
+			dst.Set(rv)
+			fmt.Printf("type: %v\n", sv.Type())
+			return
+		}
 		rv := reflect.New(dst.Type().Elem())
 		if rv.Kind() == reflect.Ptr {
 			rv = rv.Elem()
