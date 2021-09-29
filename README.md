@@ -1,5 +1,9 @@
 # korm
-golang orm, 一个简单易用的orm, 支持嵌套事务
+golang orm, 简单易用的orm, 支持嵌套事务
+
+特点：
+
+1. 事务不需要传tx连接发，只需要在Transaction内部的都会进行事务操作
 
 ## 安装
 ```
@@ -67,6 +71,19 @@ fmt.Printf("id: %d\n", row.Id)
 执行的sql
 ```
 SELECT column... FROM test WHERE id=1
+```
+
+## 判断数据是否存在
+```
+if !ctx.Model(Test{}).Where("Id", 1).Exist() {
+    fmt.Println("记录不存在")
+    return
+}
+fmt.Printf("数据存在\n")
+```
+执行的sql
+```
+SELECT primaryKey FROM test WHERE id=1
 ```
 
 ## 查询多行数据
