@@ -287,9 +287,33 @@ func (m *Model) Value(col string, dst interface{}) *Collection {
 }
 
 // 是否存在记录
-func (m *Model) Exist() *Collection {
+func (m *Model) Exist() bool {
 	m.builder.fields = []string{}
-	return m.Field(m.schema.PrimaryKey).Find()
+
+	if m.schema.TableName == "" {
+		return false
+	}
+	db := m.db
+	m.builder.p = "select"
+	sqlStr, bindParams := m.builder.ToString()
+	// sqlStr := fmt.Sprintf("SELECT * FROM %s WHERE id=?", m.table)
+
+	stmt, err := db.Prepare(sqlStr)
+	if err != nil {
+		return false
+	}
+	defer stmt.Close()
+	rows, err := stmt.Query(bindParams...)
+	if err != nil {
+		return false
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		return false
+	}
+
+	return true
 }
 
 // 统计

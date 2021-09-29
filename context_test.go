@@ -20,6 +20,7 @@ type Test struct {
 	UpdateTime sqltype.DateTime `db:"update_time"`
 	Cate *TestCate `pk:"Id" fk:"TestId"`
 	Cates []TestCate `pk:"Id" fk:"TestId"`
+	Json *sqltype.KJson `db:"json"`
 }
 
 type TestCate struct {
@@ -104,10 +105,12 @@ func TestCreate(t *testing.T)  {
 		Name: "分类2",
 	})
 
+	jsonData := sqltype.KJson("{\"test\":\"name\"}")
 	insertData := &Test{
 		User: "test",
 		UpdateTime: sqltype.DateTime(time.Now()),
 		Cates: cates,
+		Json: &jsonData,
 	}
 
 	if err := ctx.Model(&insertData).Create(); err != nil {

@@ -107,7 +107,11 @@ func (schema *Schema) AddField(structField reflect.StructField) *Field {
 			}
 		}
 	case reflect.Array, reflect.Slice:
-		schema.loadRelation("many", field, fieldValue)
+		if reflect.Indirect(fieldValue).Type().Elem() == reflect.TypeOf(uint8(0)) {
+			field.DataType = Bytes
+		} else {
+			schema.loadRelation("many", field, fieldValue)
+		}
 		//if reflect.Indirect(fieldValue).Type().Elem() == reflect.TypeOf(uint8(0)) {
 		//	field.DataType = Bytes
 		//} else {
