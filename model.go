@@ -164,7 +164,7 @@ func (m *Model) Find() *Collection {
 	defer rows.Close()
 
 	if !rows.Next() {
-		return m.collection.SetExist(false).SetError(fmt.Errorf("record not exist"))
+		return m.collection.SetExist(false).SetError(ErrRecordNotFound)
 	}
 
 	ret, err := m.toMap(rows)
@@ -283,7 +283,7 @@ func (m *Model) Value(col string, dst interface{}) *Collection {
 		return m.collection.SetExist(true)
 	}
 
-	return m.collection.SetExist(false).SetError(fmt.Errorf("record not exist"))
+	return m.collection.SetExist(false).SetError(ErrRecordNotFound)
 }
 
 // 是否存在记录
