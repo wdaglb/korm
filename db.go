@@ -57,7 +57,7 @@ func (t *kdb) getKey() int {
 	return t.txCount
 }
 
-// 开启一个事务, 返回事务标识
+// Begin 开启一个事务, 返回事务标识
 func (t *kdb) Begin() (int, error) {
 	var (
 		err error
@@ -73,7 +73,7 @@ func (t *kdb) Begin() (int, error) {
 	return k, nil
 }
 
-// 提交标识对应的事务
+// Commit 提交标识对应的事务
 func (t *kdb) Commit(key int) error {
 	fmt.Printf("commit: %v\n", key)
 	if t.tx[key] == nil {
@@ -88,7 +88,7 @@ func (t *kdb) Commit(key int) error {
 	return t.tx[key].Commit()
 }
 
-// 回滚标识对应的事务
+// Rollback 回滚标识对应的事务
 func (t *kdb) Rollback(key int) error {
 	if t.tx[key] == nil {
 		return fmt.Errorf("txKey not exist: %v", key)
@@ -110,6 +110,11 @@ func (t *kdb) current() *sql.Tx {
 	}
 	fmt.Printf("当前执行事务标识：%v\n", key)
 	return t.tx[key.(int)]
+}
+
+// Handler 获取db实例
+func (t *kdb) Handler() *sql.DB {
+	return t.db
 }
 
 func (t *kdb) Exec(query string, args ...interface{}) (sql.Result, error) {
