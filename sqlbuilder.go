@@ -8,23 +8,28 @@ import (
 )
 
 type SqlBuilder struct {
-	model *Model
-	sep string
-	p string
-	schema *schema.Schema
-	data map[string]interface{}
-	fields []string
+	model        *Model
+	sep          string
+	p            string
+	schema       *schema.Schema
+	data         map[string]interface{}
+	fields       []SqlField
 	ignoreFields []string
-	rawFields []string
+	rawFields    []string
 	resultFields map[string]string
-	clearField bool
-	orders []string
-	where *Where
-	group []string
-	having *Where
-	offset *int
-	limit *int
-	bindParams []interface{}
+	clearField   bool
+	orders       []string
+	where        *Where
+	group        []string
+	having       *Where
+	offset       *int
+	limit        *int
+	bindParams   []interface{}
+}
+
+type SqlField struct {
+	Name  string
+	IsRaw bool
 }
 
 func NewSqlBuilder(model *Model, schema *schema.Schema) *SqlBuilder {
@@ -40,8 +45,8 @@ func NewSqlBuilder(model *Model, schema *schema.Schema) *SqlBuilder {
 	return sq
 }
 
-func (t *SqlBuilder) parseField(field string) string {
- 	return utils.ParseField(t.model.db.dbConf.Driver, t.schema.Type, field)
+func (t *SqlBuilder) parseField(field string, raw bool) string {
+	return utils.ParseField(t.model.db.dbConf.Driver, t.schema.Type, field, raw)
 }
 
 func (t *SqlBuilder) bindParam(value interface{}) {
@@ -51,7 +56,10 @@ func (t *SqlBuilder) bindParam(value interface{}) {
 func (t *SqlBuilder) AddField(str string) *SqlBuilder {
 	fields := strings.Split(str, ",")
 	for _, f := range fields {
-		t.fields = append(t.fields, f)
+		t.fields = append(t.fields, SqlField{
+			Name:  f,
+			IsRaw: false,
+		})
 	}
 	return t
 }
@@ -87,9 +95,9 @@ func (t *SqlBuilder) AddWhere(logic string, field string, op interface{}, condit
 		}
 	}
 	t.where.AddCondition(WhereCondition{
-		Logic: logic,
-		Field: t.parseField(field),
-		Operator: op.(string),
+		Logic:     logic,
+		Field:     t.parseField(field, false),
+		Operator:  op.(string),
 		Condition: value,
 	})
 
@@ -97,17 +105,17 @@ func (t *SqlBuilder) AddWhere(logic string, field string, op interface{}, condit
 }
 
 func (t *SqlBuilder) AddOrder(field string, val string) *SqlBuilder {
-	t.orders = append(t.orders, t.parseField(field) + " " + val)
+	t.orders = append(t.orders, t.parseField(field, false)+" "+val)
 	return t
 }
 
 func (t *SqlBuilder) AddOrderRaw(field string, val string) *SqlBuilder {
-	t.orders = append(t.orders, field + " " + val)
+	t.orders = append(t.orders, field+" "+val)
 	return t
 }
 
 func (t *SqlBuilder) AddGroup(name string) *SqlBuilder {
-	t.group = append(t.group, t.parseField(name))
+	t.group = append(t.group, t.parseField(name, false))
 	return t
 }
 
@@ -126,7 +134,7 @@ func (t *SqlBuilder) AddHaving(logic string, field string, op interface{}, condi
 	}
 	t.having.AddCondition(WhereCondition{
 		Logic:     logic,
-		Field:     t.parseField(field),
+		Field:     t.parseField(field, false),
 		Operator:  op.(string),
 		Condition: value,
 	})
@@ -138,9 +146,9 @@ func (t *SqlBuilder) GetTable() string {
 	var table string
 	switch t.model.db.dbConf.Driver {
 	case "mssql":
-		table = fmt.Sprintf("[%s]", t.model.db.dbConf.TablePrefix + t.schema.TableName)
+		table = fmt.Sprintf("[%s]", t.model.db.dbConf.TablePrefix+t.schema.TableName)
 	case "mysql":
-		table = fmt.Sprintf("`%s`", t.model.db.dbConf.TablePrefix + t.schema.TableName)
+		table = fmt.Sprintf("`%s`", t.model.db.dbConf.TablePrefix+t.schema.TableName)
 	}
 	return table
 }
@@ -154,7 +162,7 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 			str = strings.ReplaceAll(str, "SELECT ", fmt.Sprintf("SELECT TOP %d ", *t.limit))
 		}
 		var (
-			fs []string
+			fs  []SqlField
 			fsv []string
 		)
 		if !t.clearField {
@@ -165,19 +173,22 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 					if f.DataType == "" {
 						continue
 					}
-					fs = append(fs, f.Name)
+					fs = append(fs, SqlField{
+						Name:  f.Name,
+						IsRaw: false,
+					})
 				}
 			}
 		}
 
 		t.resultFields = make(map[string]string, 0)
 		for _, v := range fs {
-			if utils.InStrArray(t.ignoreFields, v) {
+			if utils.InStrArray(t.ignoreFields, v.Name) {
 				continue
 			}
-			fsv = append(fsv, t.parseField(v))
-			vf, _ := utils.ParseFieldDb(t.schema.Type, v)
-			t.resultFields[v] = vf
+			fsv = append(fsv, t.parseField(v.Name, v.IsRaw))
+			vf, _ := utils.ParseFieldDb(t.schema.Type, v.Name)
+			t.resultFields[v.Name] = vf
 		}
 		for _, v := range t.rawFields {
 			fsv = append(fsv, v)
@@ -194,7 +205,7 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 		keys := make([]string, 0)
 		values := make([]string, 0)
 		var (
-			fs []string
+			fs []SqlField
 		)
 		if len(t.fields) > 0 {
 			fs = t.fields
@@ -203,23 +214,26 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 				if f.DataType == "" {
 					continue
 				}
-				fs = append(fs, f.Name)
+				fs = append(fs, SqlField{
+					Name:  f.Name,
+					IsRaw: false,
+				})
 			}
 		}
 
 		for _, k := range fs {
-			if k == t.schema.PrimaryKey {
+			if k.Name == t.schema.PrimaryKey {
 				continue
 			}
-			f := t.schema.FieldNames[k]
+			f := t.schema.FieldNames[k.Name]
 			if f.DataType == "" {
 				continue
 			}
-			if utils.InStrArray(t.ignoreFields, k) {
+			if utils.InStrArray(t.ignoreFields, k.Name) {
 				continue
 			}
-			t.bindParam(t.data[k])
-			keys = append(keys, t.parseField(k))
+			t.bindParam(t.data[k.Name])
+			keys = append(keys, t.parseField(k.Name, k.IsRaw))
 			values = append(values, "?")
 		}
 		str = strings.ReplaceAll(str, "[columns]", strings.Join(keys, ","))
@@ -229,7 +243,7 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 		values := make([]string, 0)
 
 		var (
-			fs []string
+			fs []SqlField
 		)
 		if len(t.fields) > 0 {
 			fs = t.fields
@@ -238,23 +252,26 @@ func (t *SqlBuilder) ToString() (string, []interface{}) {
 				if f.DataType == "" {
 					continue
 				}
-				fs = append(fs, f.Name)
+				fs = append(fs, SqlField{
+					Name:  f.Name,
+					IsRaw: false,
+				})
 			}
 		}
 
 		for _, k := range fs {
-			if k == t.schema.PrimaryKey {
+			if k.Name == t.schema.PrimaryKey {
 				continue
 			}
-			f := t.schema.FieldNames[k]
+			f := t.schema.FieldNames[k.Name]
 			if f.DataType == "" {
 				continue
 			}
-			if utils.InStrArray(t.ignoreFields, k) {
+			if utils.InStrArray(t.ignoreFields, k.Name) {
 				continue
 			}
-			t.bindParam(t.data[k])
-			values = append(values, fmt.Sprintf("%s=?", t.parseField(k)))
+			t.bindParam(t.data[k.Name])
+			values = append(values, fmt.Sprintf("%s=?", t.parseField(k.Name, k.IsRaw)))
 		}
 		str = strings.ReplaceAll(str, "[values]", strings.Join(values, ","))
 	case "delete":

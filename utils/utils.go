@@ -113,7 +113,7 @@ func GetColumnName(field reflect.StructField) string {
 
 func ParseFieldDb(reType reflect.Type, field string) (string, reflect.StructField) {
 	var (
-		p reflect.StructField
+		p  reflect.StructField
 		ok bool
 	)
 	p, ok = reType.FieldByName(field)
@@ -124,13 +124,19 @@ func ParseFieldDb(reType reflect.Type, field string) (string, reflect.StructFiel
 }
 
 // 解析字段名
-func ParseField(driver string, reType reflect.Type, field string) string {
+func ParseField(driver string, reType reflect.Type, field string, raw bool) string {
 	field, _ = ParseFieldDb(reType, field)
 
 	switch driver {
 	case "mssql":
+		if raw {
+			return fmt.Sprintf("%s", field)
+		}
 		return fmt.Sprintf("[%s]", field)
 	case "mysql":
+		if raw {
+			return fmt.Sprintf("%s", field)
+		}
 		return fmt.Sprintf("`%s`", field)
 	default:
 		return field
@@ -175,7 +181,6 @@ func IndirectType(value reflect.Type) reflect.Type {
 	}
 	return value
 }
-
 
 // 转为value
 func AsValue(data interface{}, p reflect.Type, value reflect.Value) {
@@ -296,7 +301,7 @@ func StructToMap(data interface{}) map[string]interface{} {
 }
 
 // map转为结构体
-func MapToStruct(data map[string]interface{}, dst interface{})  {
+func MapToStruct(data map[string]interface{}, dst interface{}) {
 	typeOf := IndirectType(reflect.TypeOf(dst))
 	valueOf := Indirect(reflect.ValueOf(dst))
 

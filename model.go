@@ -10,16 +10,16 @@ import (
 )
 
 type Model struct {
-	db *kdb
-	model interface{}
-	context *Context
-	builder *SqlBuilder
-	schema *schema.Schema
+	db         *kdb
+	model      interface{}
+	context    *Context
+	builder    *SqlBuilder
+	schema     *schema.Schema
 	collection *Collection
-	withList map[string]WithCond
+	withList   map[string]WithCond
 
-	relationData map[string][]*relation
-	relationMap map[string]*relation
+	relationData    map[string][]*relation
+	relationMap     map[string]*relation
 	cancelTogethers []string // 取消关联数据同步操作
 }
 
@@ -179,9 +179,9 @@ func (m *Model) Find() *Collection {
 	}
 	err = m.context.emitEvent("query_after", &CallbackParams{
 		Action: "find",
-		Model: m,
-		Rows: rows,
-		Map: ret,
+		Model:  m,
+		Rows:   rows,
+		Map:    ret,
 	})
 	m.collection.Fields = m.builder.resultFields
 	m.collection.Data = ret
@@ -225,9 +225,9 @@ func (m *Model) Select() *Collection {
 	}
 
 	err = m.context.emitEvent("query_after", &CallbackParams{
-		Action: "select",
-		Model: m,
-		Rows: rows,
+		Action:  "select",
+		Model:   m,
+		Rows:    rows,
 		MapRows: maps,
 	})
 
@@ -275,9 +275,9 @@ func (m *Model) Value(col string, dst interface{}) *Collection {
 
 		err = m.context.emitEvent("query_after", &CallbackParams{
 			Action: "value",
-			Model: m,
-			Rows: rows,
-			Map: ret,
+			Model:  m,
+			Rows:   rows,
+			Map:    ret,
 		})
 		m.collection.Data = m.model
 		return m.collection.SetExist(true)
@@ -288,7 +288,7 @@ func (m *Model) Value(col string, dst interface{}) *Collection {
 
 // 是否存在记录
 func (m *Model) Exist() bool {
-	m.builder.fields = []string{}
+	m.builder.fields = []SqlField{}
 
 	if m.schema.TableName == "" {
 		return false
@@ -319,7 +319,7 @@ func (m *Model) Exist() bool {
 // 统计
 func (m *Model) Count() (int64, error) {
 	var dst int64
-	m.builder.fields = []string{}
+	m.builder.fields = []SqlField{}
 	m.builder.AddFieldRaw("COUNT(*) AS __COUNT__")
 	c := m.Value("__COUNT__", &dst)
 	return dst, c.Error
@@ -327,8 +327,8 @@ func (m *Model) Count() (int64, error) {
 
 // 求和
 func (m *Model) Sum(col string, dst interface{}) error {
-	m.builder.fields = []string{}
-	p := utils.ParseField(m.db.dbConf.Driver, m.schema.Type, col)
+	m.builder.fields = []SqlField{}
+	p := utils.ParseField(m.db.dbConf.Driver, m.schema.Type, col, true)
 	m.builder.AddFieldRaw(fmt.Sprintf("SUM(%s) AS __SUM__", p))
 	c := m.Value("__SUM__", dst)
 	return c.Error
@@ -336,8 +336,8 @@ func (m *Model) Sum(col string, dst interface{}) error {
 
 // 最大值
 func (m *Model) Max(col string, dst interface{}) error {
-	m.builder.fields = []string{}
-	p := utils.ParseField(m.db.dbConf.Driver, m.schema.Type, col)
+	m.builder.fields = []SqlField{}
+	p := utils.ParseField(m.db.dbConf.Driver, m.schema.Type, col, true)
 	m.builder.AddFieldRaw(fmt.Sprintf("MAX(%s) AS __VALUE__", p))
 	c := m.Value("__VALUE__", dst)
 	return c.Error
@@ -345,8 +345,8 @@ func (m *Model) Max(col string, dst interface{}) error {
 
 // 最小值
 func (m *Model) Min(col string, dst interface{}) error {
-	m.builder.fields = []string{}
-	p := utils.ParseField(m.db.dbConf.Driver, m.schema.Type, col)
+	m.builder.fields = []SqlField{}
+	p := utils.ParseField(m.db.dbConf.Driver, m.schema.Type, col, true)
 	m.builder.AddFieldRaw(fmt.Sprintf("MIN(%s) AS __VALUE__", p))
 	c := m.Value("__VALUE__", dst)
 	return c.Error
@@ -354,8 +354,8 @@ func (m *Model) Min(col string, dst interface{}) error {
 
 // 平均值
 func (m *Model) Avg(col string, dst *float64) error {
-	m.builder.fields = []string{}
-	p := utils.ParseField(m.db.dbConf.Driver, m.schema.Type, col)
+	m.builder.fields = []SqlField{}
+	p := utils.ParseField(m.db.dbConf.Driver, m.schema.Type, col, true)
 	m.builder.AddFieldRaw(fmt.Sprintf("AVG(%s) AS __VALUE__", p))
 	c := m.Value("__VALUE__", dst)
 	return c.Error
@@ -408,7 +408,7 @@ func (m *Model) Create() error {
 	}
 	err = m.context.emitEvent("insert_after", &CallbackParams{
 		Action: "insert",
-		Model: m,
+		Model:  m,
 	})
 	return err
 }
@@ -442,7 +442,7 @@ func (m *Model) Update() error {
 	}
 	err = m.context.emitEvent("update_after", &CallbackParams{
 		Action: "update",
-		Model: m,
+		Model:  m,
 	})
 
 	return err
@@ -477,9 +477,8 @@ func (m *Model) Delete() error {
 	}
 	err = m.context.emitEvent("delete_after", &CallbackParams{
 		Action: "delete",
-		Model: m,
+		Model:  m,
 	})
 
 	return err
 }
-
